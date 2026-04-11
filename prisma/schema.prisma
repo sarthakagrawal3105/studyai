@@ -4,13 +4,13 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
+  id          String   @id @default(cuid())
+  email       String?  @unique
+  phoneNumber String?  @unique
+  name        String?
   level     Int      @default(1)
   exp       Int      @default(0)
   createdAt DateTime @default(now())
