@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { generateSyllabusPlan } from "@/app/actions/planner";
-import { UploadCloud, FileText, Loader2, Sparkles, ChevronDown, Clock, BrainCircuit, Calendar } from "lucide-react";
+import { generateSyllabusPlan, saveSyllabusPlan } from "@/app/actions/planner";
+import { UploadCloud, FileText, Loader2, Sparkles, ChevronDown, Clock, BrainCircuit, Calendar, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 type Topic = {
@@ -95,6 +96,9 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<SyllabusPlan | null>(null);
   
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  
   // New State variables for configuration ranges
   const [targetWeeks, setTargetWeeks] = useState("");
   const [targetHours, setTargetHours] = useState("");
@@ -164,6 +168,21 @@ export default function PlannerPage() {
     }
   };
 
+  const handleSavePlan = async () => {
+    if (!plan || !file) return;
+    setIsSaving(true);
+    // Use a placeholder userId for testing
+    const res = await saveSyllabusPlan(plan, "user_123", file.name);
+    setIsSaving(false);
+    
+    if (res.success) {
+      toast.success("Plan saved! Let's get to work.");
+      router.push('/plans');
+    } else {
+      toast.error(res.error || "Failed to save plan.");
+    }
+  };
+
   const resetPlanner = () => {
     setFile(null);
     setPlan(null);
@@ -178,12 +197,22 @@ export default function PlannerPage() {
           Syllabus Planner <Sparkles className="text-amber-500" />
         </h1>
         {plan && (
-          <button 
-            onClick={resetPlanner}
-            className="px-4 py-2 text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
-          >
-            Upload New
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={resetPlanner}
+              className="px-4 py-2 text-sm font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+            >
+              Upload New
+            </button>
+            <button 
+              onClick={handleSavePlan}
+              disabled={isSaving}
+              className="px-4 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+            >
+              <CheckCircle size={16} />
+              {isSaving ? "Saving..." : "Accept & Save Plan"}
+            </button>
+          </div>
         )}
       </div>
 

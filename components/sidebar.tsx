@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 const routes = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", color: "text-sky-400 font-semibold" },
   { label: "Syllabus Planner", icon: Calendar, href: "/planner", color: "text-violet-400 font-semibold" },
+  { label: "My Plans", icon: BookOpen, href: "/plans", color: "text-fuchsia-400 font-semibold" },
   { label: "AI Tests", icon: CheckSquare, href: "/tests", color: "text-pink-400 font-semibold" },
   { label: "Smart Notes", icon: BookOpen, href: "/notes", color: "text-orange-400 font-semibold" },
   { label: "AI Study Tutor", icon: MessageSquare, href: "/tutor", color: "text-emerald-400 font-semibold" },

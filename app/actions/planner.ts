@@ -1,6 +1,7 @@
 "use server"
 
 import { GoogleGenAI } from "@google/genai";
+import { prisma } from "@/lib/prisma";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -76,5 +77,103 @@ Return ONLY a valid, raw JSON object matching EXACTLY this structure (no markdow
   } catch (err: any) {
     console.error("Error generating plan:", err);
     return { success: false, error: err.message || "Failed to parse syllabus. Please make sure it's a valid text-based PDF." };
+  }
+}
+
+export async function saveSyllabusPlan(plan: any, userId: string, subjectName: string) {
+  try {
+    // Upsert a dummy user to satisfy relation testing if they don't exist
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: { id: userId, email: `${userId}@example.com`, name: "Student" }
+    });
+
+    const newSubject = await prisma.subject.create({
+      data: {
+        userId,
+        name: subjectName,
+        totalWeeks: plan.totalWeeks,
+        targetHours: plan.weeks.reduce((acc: number, w: any) => acc + w.topics.reduce((t_acc: number, t: any) => t_acc + t.estimatedHours, 0), 0),
+        topics: {
+          create: plan.weeks.flatMap((week: any) => 
+            week.topics.map((topic: any) => ({
+              name: topic.title,
+              description: topic.description,
+              weekNumber: week.weekNumber,
+              estimatedHours: topic.estimatedHours,
+              activeLearningStrategy: topic.activeLearningStrategy
+            }))
+          )
+        }
+      }
+    });
+    return { success: true, subjectId: newSubject.id };
+  } catch (error: any) {
+    console.error("Save plan error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function completeTopicAndGenerateTest(topicId: string, userId: string) {
+  try {
+    const topic = await prisma.topic.findUnique({ where: { id: topicId } });
+    if (!topic) throw new Error("Topic not found");
+
+    if (!topic.isCompleted) {
+      await prisma.topic.update({
+        where: { id: topicId },
+        data: { isCompleted: true }
+      });
+    }
+
+    const prompt = `
+You are an expert tutor. The student has just completed studying: "${topic.name}".
+Their study strategy and context was: "${topic.activeLearningStrategy || topic.description || ''}"
+
+Generate a 10-question multiple-choice test to test their fundamental understanding of this specific topic.
+Return ONLY a valid, raw JSON object matching exactly this structure (no markdown blocks like \`\`\`json):
+{
+  "testTitle": "A concise title for this test",
+  "questions": [
+    {
+      "questionText": "The question here?",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": "A",
+      "explanation": "Why this is correct."
+    }
+  ]
+}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt
+    });
+
+    const text = response.text || "";
+    const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const testData = JSON.parse(cleanedText);
+
+    const test = await prisma.test.create({
+      data: {
+        userId,
+        topicId: topic.id,
+        title: testData.testTitle,
+        questions: {
+          create: testData.questions.map((q: any) => ({
+            questionText: q.questionText,
+            options: JSON.stringify(q.options),
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation
+          }))
+        }
+      }
+    });
+
+    return { success: true, testId: test.id };
+  } catch (error: any) {
+    console.error("Generate test error:", error);
+    return { success: false, error: error.message };
   }
 }

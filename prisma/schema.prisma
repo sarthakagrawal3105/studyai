@@ -23,24 +23,31 @@ model User {
 }
 
 model Subject {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  color     String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  color       String?
+  totalWeeks  Int?
+  targetHours Int?
+  createdAt   DateTime @default(now())
   
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  topics    Topic[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics      Topic[]
 }
 
 model Topic {
   id          String   @id @default(cuid())
   subjectId   String
   name        String
+  description String?
+  weekNumber  Int?
+  estimatedHours Int?
+  activeLearningStrategy String?
   isCompleted Boolean  @default(false)
   confidence  Int      @default(0) // 0-100%
   
   subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  tests       Test[]
 }
 
 model StudySession {
@@ -56,11 +63,25 @@ model StudySession {
 model Test {
   id        String   @id @default(cuid())
   userId    String
+  topicId   String?
   title     String
   score     Int?     // percentage
   createdAt DateTime @default(now())
   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  questions Question[]
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  testId        String
+  questionText  String
+  options       String   // Stored as JSON string
+  correctAnswer String
+  explanation   String?
+  
+  test          Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
 }
 
 model Note {
