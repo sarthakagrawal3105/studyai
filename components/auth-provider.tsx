@@ -36,6 +36,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!currentUser && isProtectedRoute) {
         router.push("/login");
       }
+
+      if (currentUser && pathname === "/login") {
+        router.push("/dashboard");
+      }
     });
 
     return () => unsubscribe();
