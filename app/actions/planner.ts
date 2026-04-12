@@ -1,9 +1,11 @@
-"use server"
+"use server";
 
-import { GoogleGenAI } from "@google/genai";
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "@/lib/prisma";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
 export async function generateSyllabusPlan(formData: FormData) {
   try {
@@ -54,20 +56,18 @@ Return ONLY a valid, raw JSON object matching EXACTLY this structure (no markdow
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        prompt,
-        {
-          inlineData: {
-            data: base64Data,
-            mimeType: "application/pdf"
-          }
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: "application/pdf"
         }
-      ]
-    });
+      }
+    ]);
 
-    const text = response.text;
+    const response = await result.response;
+    const text = response.text() || "";
     
     // Clean up potential markdown blocks if the model still outputs them
     const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -127,9 +127,31 @@ export async function completeTopicAndGenerateTest(topicId: string, userId: stri
       });
     }
 
+    let previousIncorrectContext = "";
+    if (topic.originalTopicId) {
+      const previousTests = await prisma.test.findMany({
+        where: { topicId: topic.originalTopicId, userId },
+        orderBy: { createdAt: 'desc' },
+        include: { questions: true }
+      });
+      const lastFailedTest = previousTests.find(t => (t.score ?? 0) < 70);
+      if (lastFailedTest) {
+        const incorrectQueries = lastFailedTest.questions
+          .filter(q => q.isCorrect === false)
+          .map(q => `Question: ${q.questionText} | Options: ${q.options} | Correct Answer: ${q.correctAnswer}`);
+        if (incorrectQueries.length > 0) {
+          previousIncorrectContext = `
+The student previously failed these specific questions on this topic. You MUST include these EXACT questions mixed randomly among new ones:
+${incorrectQueries.join("\n")}
+`;
+        }
+      }
+    }
+
     const prompt = `
 You are an expert tutor. The student has just completed studying: "${topic.name}".
 Their study strategy and context was: "${topic.activeLearningStrategy || topic.description || ''}"
+${previousIncorrectContext}
 
 Generate a 10-question multiple-choice test to test their fundamental understanding of this specific topic.
 Return ONLY a valid, raw JSON object matching exactly this structure (no markdown blocks like \`\`\`json):
@@ -146,14 +168,23 @@ Return ONLY a valid, raw JSON object matching exactly this structure (no markdow
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt
-    });
-
-    const text = response.text || "";
-    const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const testData = JSON.parse(cleanedText);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text() || "";
+    let testData;
+    try {
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        testData = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+      } else {
+        const cleanedText = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        testData = JSON.parse(cleanedText);
+      }
+    } catch (parseError) {
+      console.error("Failed to parse Gemini output:", text);
+      throw new Error("AI returned invalid test format. Please try again.");
+    }
 
     const test = await prisma.test.create({
       data: {
@@ -177,3 +208,60 @@ Return ONLY a valid, raw JSON object matching exactly this structure (no markdow
     return { success: false, error: error.message };
   }
 }
+
+export async function submitAndGradeTest(testId: string, answers: Record<string, string>) {
+  try {
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      include: { questions: true, topic: true }
+    });
+    if (!test) throw new Error("Test not found");
+
+    let correctCount = 0;
+    
+    for (const q of test.questions) {
+      const userAnswer = answers[q.id];
+      const isCorrect = userAnswer === q.correctAnswer;
+      if (isCorrect) correctCount++;
+      
+      await prisma.question.update({
+        where: { id: q.id },
+        data: { userAnswer, isCorrect }
+      });
+    }
+
+    const score = Math.round((correctCount / test.questions.length) * 100);
+
+    await prisma.test.update({
+      where: { id: testId },
+      data: { score }
+    });
+
+    let revisionCreated = false;
+
+    if (score < 70 && test.topic) {
+      const topic = test.topic;
+      const failedQuestions = test.questions.filter(q => answers[q.id] !== q.correctAnswer);
+      const revisionDetails = "Failed concepts: " + failedQuestions.map(q => q.questionText).join(" | ");
+
+      await prisma.topic.create({
+        data: {
+          subjectId: topic.subjectId,
+          name: `Revision: ${topic.name}`,
+          description: "Revision required due to low test score.",
+          weekNumber: (topic.weekNumber || 1) + 1,
+          estimatedHours: 1,
+          activeLearningStrategy: `Review these missing concepts: ${revisionDetails}`,
+          originalTopicId: topic.originalTopicId || topic.id
+        }
+      });
+      revisionCreated = true;
+    }
+
+    return { success: true, score, revisionCreated };
+  } catch (error: any) {
+    console.error("Submit test error:", error);
+    return { success: false, error: error.message };
+  }
+}
+

@@ -44,6 +44,7 @@ model Topic {
   activeLearningStrategy String?
   isCompleted            Boolean @default(false)
   confidence             Int     @default(0)
+  originalTopicId        String?
   tests                  Test[]
   subject                Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 }
@@ -75,6 +76,8 @@ model Question {
   questionText  String
   options       String
   correctAnswer String
+  userAnswer    String?
+  isCorrect     Boolean?
   explanation   String?
   test          Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
 }

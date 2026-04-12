@@ -2,8 +2,9 @@
 
 import { useEffect, useState, use } from "react";
 import { getPlan, toggleTopicCompletion } from "@/app/actions/plans";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { Clock, Calendar, CheckCircle2, Circle, ArrowLeft, BrainCircuit, ChevronDown } from "lucide-react";
+import { Clock, Calendar, CheckCircle2, Circle, ArrowLeft, BrainCircuit, ChevronDown, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -16,6 +17,7 @@ type Topic = {
   estimatedHours: number | null;
   activeLearningStrategy: string | null;
   isCompleted: boolean;
+  tests?: any[];
 };
 
 type WeekGroup = {
@@ -32,6 +34,10 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
   
   // Track expanded state for topics globally in this component
   const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({});
+  
+  const [confirmingTopicId, setConfirmingTopicId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (prismaUser) {
@@ -63,29 +69,33 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
     setLoading(false);
   };
 
-  const handleToggleCompletion = async (topicId: string, currentStatus: boolean, e: React.MouseEvent) => {
+  const initiateCompletion = (topicId: string, currentStatus: boolean, e: React.MouseEvent, hasTests: boolean = false) => {
     e.stopPropagation();
-    const newStatus = !currentStatus;
+    if (currentStatus && hasTests) return; // Disable unchecking if properly completed and test generated
+    setConfirmingTopicId(topicId);
+  };
+
+  const confirmCompletion = async () => {
+    if (!confirmingTopicId) return;
+    setIsGenerating(true);
     
-    // Optimsitic update
-    const updatedWeeks = [...weeks];
-    for (const week of updatedWeeks) {
-      const topicIndex = week.topics.findIndex(t => t.id === topicId);
-      if (topicIndex !== -1) {
-        week.topics[topicIndex].isCompleted = newStatus;
-        break;
-      }
-    }
-    setWeeks(updatedWeeks);
+    // Optimsitic update visually not strictly needed here since we show loading, but good for UX if needed.
+    // We rely on the loading spinner on modal.
     
-    const res = await toggleTopicCompletion(topicId, newStatus);
+    const res = await toggleTopicCompletion(confirmingTopicId, true);
+    
     if (!res.success) {
-      toast.error("Failed to update status");
-      // Revert on failure
+      toast.error(res.error || "Failed to generate test");
+      setIsGenerating(false);
+      setConfirmingTopicId(null);
       fetchPlan();
     } else {
-      if (newStatus) {
-        toast.success("Topic marked as completed!");
+      toast.success("Topic completed and test generated!");
+      // Skip setting isGenerating false to preserve loading state during redirect
+      if (res.testId) {
+        router.push(`/tests/${res.testId}`);
+      } else {
+        router.push('/tests');
       }
     }
   };
@@ -201,7 +211,7 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
                     <motion.div layout className="p-6 flex flex-col sm:flex-row sm:items-start gap-4">
                       {/* Checkbox button */}
                       <button 
-                        onClick={(e) => handleToggleCompletion(topic.id, topic.isCompleted, e)}
+                        onClick={(e) => initiateCompletion(topic.id, topic.isCompleted, e, (topic.tests && topic.tests.length > 0))}
                         className={`shrink-0 mt-1 transition-all duration-300 rounded-full hover:scale-110 ${topic.isCompleted ? 'text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'text-slate-300 hover:text-emerald-400'}`}
                       >
                         {topic.isCompleted ? <CheckCircle2 size={32} /> : <Circle size={32} strokeWidth={2} />}
@@ -247,12 +257,13 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
                               "{topic.activeLearningStrategy}"
                             </p>
                             
-                            {!topic.isCompleted && (
+                            {(!topic.isCompleted || (topic.isCompleted && (!topic.tests || topic.tests.length === 0))) && (
                               <button 
-                                onClick={(e) => handleToggleCompletion(topic.id, topic.isCompleted, e)}
+                                onClick={(e) => initiateCompletion(topic.id, topic.isCompleted, e, (topic.tests && topic.tests.length > 0))}
                                 className="mt-6 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl transition-all shadow-lg flex items-center gap-2"
                               >
-                                <CheckCircle2 size={16} /> Mark as Completed
+                                <CheckCircle2 size={16} /> 
+                                {topic.isCompleted ? "Generate Missing AI Test" : "Mark as Completed"}
                               </button>
                             )}
                           </div>
@@ -266,6 +277,48 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
           </div>
         ))}
       </div>
+
+      <AnimatePresence>
+        {confirmingTopicId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-[#111827] rounded-3xl shadow-2xl border border-gray-100 dark:border-white/10 p-8 max-w-md w-full"
+            >
+              <h3 className="text-2xl font-black mb-2 dark:text-white">Complete Topic</h3>
+              <p className="text-slate-500 mb-8 leading-relaxed">
+                You are about to mark this topic as complete. This action cannot be undone. We will generate an AI test to evaluate your understanding right after.
+              </p>
+              
+              <div className="flex gap-4 w-full">
+                <button 
+                  onClick={() => !isGenerating && setConfirmingTopicId(null)}
+                  disabled={isGenerating}
+                  className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-xl transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmCompletion}
+                  disabled={isGenerating}
+                  className="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-80"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Confirm & Generate"
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

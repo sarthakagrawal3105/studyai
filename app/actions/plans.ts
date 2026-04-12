@@ -1,5 +1,6 @@
 "use server";
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -26,7 +27,8 @@ export async function getPlan(id: string, userId: string) {
       where: { id, userId },
       include: {
         topics: {
-          orderBy: { weekNumber: 'asc' }
+          orderBy: { weekNumber: 'asc' },
+          include: { tests: { select: { id: true } } }
         }
       }
     });
@@ -51,13 +53,30 @@ export async function deletePlan(id: string, userId: string) {
   }
 }
 
+import { completeTopicAndGenerateTest } from "./planner";
+
 export async function toggleTopicCompletion(topicId: string, isCompleted: boolean) {
   try {
-    await prisma.topic.update({
-      where: { id: topicId },
-      data: { isCompleted }
-    });
-    return { success: true };
+    let testId: string | undefined;
+    if (isCompleted) {
+      const res = await completeTopicAndGenerateTest(topicId, DUMMY_USER_ID);
+      if (!res.success) {
+        await prisma.topic.update({
+          where: { id: topicId },
+          data: { isCompleted: false }
+        });
+        return { success: false, error: res.error };
+      }
+      if (res && res.testId) {
+        testId = res.testId;
+      }
+    } else {
+      await prisma.topic.update({
+        where: { id: topicId },
+        data: { isCompleted }
+      });
+    }
+    return { success: true, testId };
   } catch (error: any) {
     console.error("Failed to toggle topic:", error);
     return { success: false, error: error.message };
