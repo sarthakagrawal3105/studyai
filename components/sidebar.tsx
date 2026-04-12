@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, Calendar, LayoutDashboard, MessageSquare, Settings, CheckSquare } from "lucide-react"
+import { BookOpen, Calendar, LayoutDashboard, Camera, Settings, CheckSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const routes = [
@@ -11,7 +11,7 @@ const routes = [
   { label: "My Plans", icon: BookOpen, href: "/plans", color: "text-fuchsia-400 font-semibold" },
   { label: "AI Tests", icon: CheckSquare, href: "/tests", color: "text-pink-400 font-semibold" },
   { label: "Smart Notes", icon: BookOpen, href: "/notes", color: "text-orange-400 font-semibold" },
-  { label: "AI Study Tutor", icon: MessageSquare, href: "/tutor", color: "text-emerald-400 font-semibold" },
+  { label: "AI Study Lens", icon: Camera, href: "/lens", color: "text-emerald-400 font-semibold" },
   { label: "Settings", icon: Settings, href: "/settings", color: "text-slate-400" },
 ]
 

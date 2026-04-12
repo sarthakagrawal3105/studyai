@@ -5,6 +5,7 @@ import { generateSyllabusPlan, saveSyllabusPlan } from "@/app/actions/planner";
 import { UploadCloud, FileText, Loader2, Sparkles, ChevronDown, Clock, BrainCircuit, Calendar, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
 import toast from "react-hot-toast";
 
 type Topic = {
@@ -96,6 +97,7 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<SyllabusPlan | null>(null);
   
+  const { user, prismaUser } = useAuth();
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   
@@ -169,10 +171,12 @@ export default function PlannerPage() {
   };
 
   const handleSavePlan = async () => {
-    if (!plan || !file) return;
+    if (!prismaUser) {
+      toast.error("You must be signed in to save a plan.");
+      return;
+    }
     setIsSaving(true);
-    // Use a placeholder userId for testing
-    const res = await saveSyllabusPlan(plan, "user_123", file.name);
+    const res = await saveSyllabusPlan(plan, prismaUser.id, file.name);
     setIsSaving(false);
     
     if (res.success) {

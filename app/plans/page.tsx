@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getPlans, deletePlan } from "@/app/actions/plans";
+import { useAuth } from "@/components/auth-provider";
 import { BookOpen, FolderOpen, Trash2, Clock, Calendar, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -9,29 +10,35 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 export default function PlansPage() {
+  const { prismaUser, loading: authLoading } = useAuth();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   const fetchPlans = async () => {
+    if (!prismaUser) return;
     setLoading(true);
-    const data = await getPlans();
+    const data = await getPlans(prismaUser.id);
     setPlans(data);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchPlans();
-  }, []);
+    if (prismaUser) {
+      fetchPlans();
+    }
+  }, [prismaUser]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
+    if (!prismaUser) return;
+    
     if (!confirm("Are you sure you want to delete this plan?")) return;
     
     const toastId = toast.loading("Deleting plan...");
-    const res = await deletePlan(id);
+    const res = await deletePlan(id, prismaUser.id);
     
     if (res.success) {
       toast.success("Plan deleted successfully!", { id: toastId });
@@ -55,7 +62,7 @@ export default function PlansPage() {
         </Link>
       </div>
 
-      {loading ? (
+      {loading || authLoading ? (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-fuchsia-500"></div>
         </div>

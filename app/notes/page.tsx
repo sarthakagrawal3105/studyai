@@ -1,8 +1,302 @@
-export default function NotesPage() {
+"use client";
+
+import { useState, useEffect } from "react";
+import { 
+  Plus, 
+  Search, 
+  FileText, 
+  Trash2, 
+  Download, 
+  Sparkles, 
+  ArrowRight,
+  BookOpen,
+  Loader2,
+  ChevronRight,
+  X,
+  RefreshCw
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/components/auth-provider";
+import { getNotes, generateSmartNote, deleteNote } from "@/app/actions/notes";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import toast from "react-hot-toast";
+
+export default function SmartNotesPage() {
+  const { prismaUser, loading: authLoading } = useAuth();
+  const [notes, setNotes] = useState<any[]>([]);
+  const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showCreator, setShowCreator] = useState(false);
+  
+  // Creator State
+  const [creatorMode, setCreatorMode] = useState<"GENERATE" | "REFINE">("GENERATE");
+  const [topicInput, setTopicInput] = useState("");
+  const [rawContent, setRawContent] = useState("");
+
+  useEffect(() => {
+    if (prismaUser) {
+      fetchNotes();
+    }
+  }, [prismaUser]);
+
+  const fetchNotes = async () => {
+    if (!prismaUser) return;
+    setLoading(true);
+    const data = await getNotes(prismaUser.id);
+    setNotes(data);
+    if (data.length > 0 && !selectedNote) {
+      setSelectedNote(data[0]);
+    }
+    setLoading(false);
+  };
+
+  const handleCreateNote = async () => {
+    if (!prismaUser) return;
+    if (creatorMode === "GENERATE" && !topicInput) return;
+    if (creatorMode === "REFINE" && !rawContent) return;
+
+    setIsGenerating(true);
+    const toastId = toast.loading(creatorMode === "GENERATE" ? "Generating Master Note..." : "Refining your notes...");
+    
+    const res = await generateSmartNote(topicInput, creatorMode, prismaUser.id, rawContent);
+    setIsGenerating(false);
+
+    if (res.success) {
+      setNotes(prev => [res.note, ...prev]);
+      setSelectedNote(res.note);
+      setShowCreator(false);
+      setTopicInput("");
+      setRawContent("");
+      toast.success("Note created!", { id: toastId });
+    } else {
+      toast.error("Failed to generate note.", { id: toastId });
+    }
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!prismaUser || !confirm("Delete this note?")) return;
+    
+    const res = await deleteNote(id, prismaUser.id);
+    if (res.success) {
+      setNotes(prev => prev.filter(n => n.id !== id));
+      if (selectedNote?.id === id) {
+          setSelectedNote(notes.filter(n => n.id !== id)[0] || null);
+      }
+      toast.success("Deleted");
+    }
+  };
+
+  const exportToPDF = async () => {
+    const element = document.getElementById("note-content");
+    if (!element) return;
+    
+    const toastId = toast.loading("Preparing PDF...");
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    pdf.save(`${selectedNote.title.replace(/\s+/g, '_')}.pdf`);
+    toast.success("Downloaded!", { id: toastId });
+  };
+
+  if (authLoading) return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500" /></div>;
+
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <h1 className="text-4xl font-extrabold tracking-tight text-white mb-4 shadow-sm">Smart Notes</h1>
-      <p className="text-slate-400 max-w-lg text-center">Your central hub for uploading PDFs and generating study notes.</p>
+    <div className="flex h-full w-full overflow-hidden bg-[#0a0a0f] text-slate-200">
+      {/* LEFT SIDEBAR: Notes List */}
+      <div className="w-80 md:w-96 border-r border-white/5 flex flex-col bg-[#0f0f1a] relative z-20">
+        <div className="p-6 border-b border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-black text-white">Smart Notes</h1>
+            <button 
+              onClick={() => setShowCreator(true)}
+              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+            >
+              <Plus size={20} />
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search notes..." 
+              className="w-full bg-black/20 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {loading ? (
+            <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-600" /></div>
+          ) : notes.length === 0 ? (
+            <div className="text-center py-10 px-6">
+                <p className="text-slate-500 text-sm">No notes yet. Create your first one!</p>
+            </div>
+          ) : (
+            notes.map((note) => (
+              <div 
+                key={note.id}
+                onClick={() => setSelectedNote(note)}
+                className={`group p-4 rounded-2xl cursor-pointer transition-all border ${
+                  selectedNote?.id === note.id 
+                    ? "bg-indigo-600/10 border-indigo-500/50 shadow-md" 
+                    : "bg-transparent border-transparent hover:bg-white/5"
+                }`}
+              >
+                <div className="flex justify-between items-start gap-3">
+                    <FileText className={`shrink-0 mt-1 ${selectedNote?.id === note.id ? "text-indigo-400" : "text-slate-500"}`} size={18} />
+                    <div className="flex-1 min-w-0">
+                        <h4 className={`text-sm font-bold truncate ${selectedNote?.id === note.id ? "text-white" : "text-slate-300"}`}>
+                            {note.title}
+                        </h4>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                            {new Date(note.createdAt).toLocaleDateString()}
+                        </p>
+                    </div>
+                    <button 
+                        onClick={(e) => handleDelete(note.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT: Note Viewer */}
+      <div className="flex-1 flex flex-col relative bg-[#0a0a0f] overflow-hidden">
+        {selectedNote ? (
+          <>
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/10 backdrop-blur-sm relative z-10">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                    <BookOpen size={20} />
+                 </div>
+                 <h2 className="text-xl font-bold text-white group">{selectedNote.title}</h2>
+              </div>
+              <button 
+                onClick={exportToPDF}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 border border-white/5"
+              >
+                <Download size={16} /> Export PDF
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 md:p-12">
+               <div id="note-content" className="max-w-4xl mx-auto bg-white/5 p-12 rounded-[40px] border border-white/5 shadow-2xl relative">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                     <Sparkles size={80} className="text-indigo-500" />
+                  </div>
+                  <div className="prose prose-invert max-w-none prose-h1:text-4xl prose-h1:font-black prose-h2:text-2xl prose-h2:font-bold prose-h2:text-indigo-400 prose-p:text-slate-300 prose-p:leading-relaxed prose-strong:text-white prose-code:bg-slate-800 prose-code:p-1 prose-code:rounded prose-blockquote:border-indigo-500">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {selectedNote.content}
+                    </ReactMarkdown>
+                  </div>
+               </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#0a0a16]">
+            <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 text-slate-700">
+               <FileText size={48} />
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2">Select a Note</h3>
+            <p className="text-slate-500 max-w-sm">Choose from your library or create a new Smart Note to start studying.</p>
+          </div>
+        )}
+
+        {/* Note Creator Overlay */}
+        <AnimatePresence>
+          {showCreator && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-6"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="w-full max-w-2xl bg-[#11111a] border border-white/10 rounded-[40px] p-10 shadow-3xl overflow-hidden relative"
+              >
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Sparkles size={120} />
+                </div>
+                
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-3xl font-black text-white">Create Smart Note</h2>
+                    <button onClick={() => setShowCreator(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <div className="flex gap-2 p-1 bg-black/20 rounded-2xl mb-8">
+                   <button 
+                    onClick={() => setCreatorMode("GENERATE")}
+                    className={`flex-1 py-3 rounded-xl font-bold transition-all ${creatorMode === "GENERATE" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-white"}`}
+                   >
+                    Generate From Topic
+                   </button>
+                   <button 
+                    onClick={() => setCreatorMode("REFINE")}
+                    className={`flex-1 py-3 rounded-xl font-bold transition-all ${creatorMode === "REFINE" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-white"}`}
+                   >
+                    Refine My Text
+                   </button>
+                </div>
+
+                {creatorMode === "GENERATE" ? (
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">What's the topic?</label>
+                            <input 
+                              type="text" 
+                              value={topicInput}
+                              onChange={(e) => setTopicInput(e.target.value)}
+                              placeholder="e.g. Photosynthesis in Plants" 
+                              className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Paste your raw notes</label>
+                            <textarea 
+                              value={rawContent}
+                              onChange={(e) => setRawContent(e.target.value)}
+                              placeholder="Paste text from a lecture, a book, or your class notes..." 
+                              rows={8}
+                              className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium resize-none"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <button 
+                  disabled={isGenerating}
+                  onClick={handleCreateNote}
+                  className="w-full mt-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 group"
+                >
+                  {isGenerating ? <Loader2 className="animate-spin" /> : <RefreshCw className="group-hover:rotate-180 transition-transform duration-500" size={20} />}
+                  {isGenerating ? "AI Processing..." : creatorMode === "GENERATE" ? "Generate Master Note" : "Refine and Format"}
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import { getPlan, toggleTopicCompletion } from "@/app/actions/plans";
+import { useAuth } from "@/components/auth-provider";
 import { Clock, Calendar, CheckCircle2, Circle, ArrowLeft, BrainCircuit, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -23,6 +24,7 @@ type WeekGroup = {
 };
 
 export default function PlanDetailsPage({ params }: { params: Promise<{ subjectId: string }> }) {
+  const { prismaUser, loading: authLoading } = useAuth();
   const unwrappedParams = use(params);
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,12 +34,15 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
   const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    fetchPlan();
-  }, [unwrappedParams.subjectId]);
+    if (prismaUser) {
+      fetchPlan();
+    }
+  }, [unwrappedParams.subjectId, prismaUser]);
 
   const fetchPlan = async () => {
+    if (!prismaUser) return;
     setLoading(true);
-    const data = await getPlan(unwrappedParams.subjectId);
+    const data = await getPlan(unwrappedParams.subjectId, prismaUser.id);
     
     if (data && data.topics) {
       // Group topics by week
@@ -93,9 +98,9 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
     }));
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
-      <div className="flex justify-center items-center h-full">
+      <div className="flex justify-center items-center h-full py-20">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-fuchsia-500"></div>
       </div>
     );

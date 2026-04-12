@@ -4,22 +4,22 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id          String   @id @default(cuid())
-  email       String?  @unique
-  phoneNumber String?  @unique
+  id          String         @id @default(cuid())
+  email       String?        @unique
+  phoneNumber String?        @unique
   name        String?
-  level     Int      @default(1)
-  exp       Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  subjects  Subject[]
-  sessions  StudySession[]
-  tests     Test[]
-  notes     Note[]
+  level       Int            @default(1)
+  exp         Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  notes       Note[]
+  sessions    StudySession[]
+  subjects    Subject[]
+  tests       Test[]
 }
 
 model Subject {
@@ -30,58 +30,53 @@ model Subject {
   totalWeeks  Int?
   targetHours Int?
   createdAt   DateTime @default(now())
-  
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   topics      Topic[]
 }
 
 model Topic {
-  id          String   @id @default(cuid())
-  subjectId   String
-  name        String
-  description String?
-  weekNumber  Int?
-  estimatedHours Int?
+  id                     String  @id @default(cuid())
+  subjectId              String
+  name                   String
+  description            String?
+  weekNumber             Int?
+  estimatedHours         Int?
   activeLearningStrategy String?
-  isCompleted Boolean  @default(false)
-  confidence  Int      @default(0) // 0-100%
-  
-  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  tests       Test[]
+  isCompleted            Boolean @default(false)
+  confidence             Int     @default(0)
+  tests                  Test[]
+  subject                Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 }
 
 model StudySession {
-  id        String   @id @default(cuid())
-  userId    String
-  duration  Int      // in minutes
-  focus     Int      // 0-100% focus score
-  date      DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String   @id @default(cuid())
+  userId   String
+  duration Int
+  focus    Int
+  date     DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Test {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   userId    String
   topicId   String?
   title     String
-  score     Int?     // percentage
-  createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  score     Int?
+  createdAt DateTime   @default(now())
   questions Question[]
+  topic     Topic?     @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Question {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   testId        String
   questionText  String
-  options       String   // Stored as JSON string
+  options       String
   correctAnswer String
   explanation   String?
-  
-  test          Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  test          Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
 }
 
 model Note {
@@ -90,6 +85,5 @@ model Note {
   title     String
   content   String
   createdAt DateTime @default(now())
-  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

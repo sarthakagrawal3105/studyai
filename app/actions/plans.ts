@@ -3,12 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-const DUMMY_USER_ID = "user_123";
 
-export async function getPlans() {
+export async function getPlans(userId: string) {
   try {
     const plans = await prisma.subject.findMany({
-      where: { userId: DUMMY_USER_ID },
+      where: { userId },
       include: {
         topics: true,
       },
@@ -21,10 +20,10 @@ export async function getPlans() {
   }
 }
 
-export async function getPlan(id: string) {
+export async function getPlan(id: string, userId: string) {
   try {
     const plan = await prisma.subject.findUnique({
-      where: { id, userId: DUMMY_USER_ID },
+      where: { id, userId },
       include: {
         topics: {
           orderBy: { weekNumber: 'asc' }
@@ -38,10 +37,10 @@ export async function getPlan(id: string) {
   }
 }
 
-export async function deletePlan(id: string) {
+export async function deletePlan(id: string, userId: string) {
   try {
     await prisma.subject.delete({
-      where: { id, userId: DUMMY_USER_ID }
+      where: { id, userId }
     });
     revalidatePath("/plans");
     revalidatePath("/dashboard");

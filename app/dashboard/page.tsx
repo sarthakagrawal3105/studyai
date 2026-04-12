@@ -1,68 +1,189 @@
-import { Brain, Flame, Target, Trophy } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth-provider";
+import { getDashboardData } from "@/app/actions/dashboard";
+import ProgressChart from "@/components/progress-chart";
+import { 
+  Brain, 
+  Flame, 
+  Target, 
+  Trophy, 
+  Clock, 
+  Sparkles, 
+  ArrowRight, 
+  BookOpen, 
+  Loader2,
+  Calendar,
+  ChevronRight,
+  TrendingUp,
+  Award
+} from "lucide-react";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function DashboardPage() {
+  const { prismaUser, loading: authLoading } = useAuth();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      if (prismaUser) {
+        setLoading(true);
+        const dashboardData = await getDashboardData(prismaUser.id);
+        setData(dashboardData);
+        setLoading(false);
+      }
+    }
+    load();
+  }, [prismaUser]);
+
+  if (authLoading || loading) return (
+    <div className="h-full flex flex-col items-center justify-center space-y-4">
+      <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+      <p className="text-slate-500 font-medium animate-pulse">Syncing your progress...</p>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto h-full overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Overview
-        </h1>
-        
-      </div>
+    <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto h-full animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       
-      {/* Premium Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="p-6 bg-white dark:bg-[#111827] rounded-3xl shadow-xl border border-gray-100 dark:border-white/5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Flame size={100} /></div>
-          <h3 className="font-semibold text-slate-500 dark:text-slate-400 mb-1">Current Streak</h3>
-          <p className="text-4xl font-black text-orange-500">12 Days</p>
-          <p className="text-xs text-slate-400 mt-2 font-medium">Top 5% of learners!</p>
+      {/* HERO SECTION: AI Briefing */}
+      <section className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-slate-900 via-[#0B0F19] to-slate-900 border border-white/5 p-8 md:p-12 shadow-2xl">
+        <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+          <Sparkles className="w-64 h-64 text-indigo-500" />
         </div>
+        <div className="relative z-10 max-w-3xl">
+          <div className="flex items-center gap-2 text-indigo-400 font-black uppercase tracking-[0.2em] text-xs mb-4">
+             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+             AI Daily Briefing
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-6">
+            Welcome back, <br />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+              {prismaUser?.name || "Innovator"} 🚀
+            </span>
+          </h1>
+          <p className="text-lg md:text-xl text-slate-400 leading-relaxed font-medium">
+            "{data?.aiBriefing || "Your path to mastery continues today. Let's make every minute count."}"
+          </p>
+        </div>
+      </section>
 
-        <div className="p-6 bg-white dark:bg-[#111827] rounded-3xl shadow-xl border border-gray-100 dark:border-white/5 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Target size={100} /></div>
-          <h3 className="font-semibold text-slate-500 dark:text-slate-400 mb-1">Test Accuracy</h3>
-          <p className="text-4xl font-black text-emerald-500">87%</p>
-          <p className="text-xs text-slate-400 mt-2 font-medium">+4% from last week</p>
-        </div>
-
-        <div className="p-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl shadow-[0_0_40px_rgba(99,102,241,0.2)] border border-white/20 relative overflow-hidden text-white">
-          <h3 className="font-semibold text-white/80 mb-1">Total EXP</h3>
-          <p className="text-4xl font-black">2,450</p>
-          <p className="text-xs text-white/70 mt-2 font-medium">Level 12 Scholar</p>
-        </div>
+      {/* STATS ROW */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Brain Power", val: `${prismaUser?.level || 1}`, sub: "Level", icon: Brain, color: "text-blue-400", bg: "bg-blue-400/10" },
+          { label: "Study Streak", val: "4", sub: "Days", icon: Flame, color: "text-orange-500", bg: "bg-orange-500/10" },
+          { label: "Mastery Index", val: `${data?.masteryPercentage || 0}%`, sub: "Syllabus", icon: Target, color: "text-emerald-400", bg: "bg-emerald-400/10" },
+          { label: "Total Points", val: `${prismaUser?.exp || 0}`, sub: "EXP", icon: Trophy, color: "text-yellow-400", bg: "bg-yellow-400/10" },
+        ].map((stat, i) => (
+          <motion.div 
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="p-6 bg-[#111827]/50 backdrop-blur-sm border border-white/5 rounded-3xl flex flex-col gap-1 group hover:border-white/10 transition-all cursor-default"
+          >
+            <div className={`p-3 rounded-2xl w-fit ${stat.bg} ${stat.color} mb-2 group-hover:scale-110 transition-transform`}>
+              <stat.icon size={20} />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-black text-white">{stat.val}</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{stat.sub}</span>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
-        <div className="lg:col-span-2 p-8 bg-white dark:bg-[#111827] rounded-3xl shadow-xl border border-gray-100 dark:border-white/5">
-          <h2 className="text-2xl font-bold mb-6 flex items-center"><Brain className="mr-3 text-purple-500" /> AI Study Recommendations</h2>
-          <div className="space-y-4">
-            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900 border dark:border-white/5 flex items-center justify-between hover:border-purple-500/50 transition-colors cursor-pointer">
-              <div>
-                <h4 className="font-bold text-lg dark:text-white">Review Thermodynamics</h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400">You scored 65% on the last test. Let's patch those weak points.</p>
-              </div>
-              <button className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors">Start</button>
-            </div>
+      {/* MAIN LAYOUT: FEED + ANALYSIS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* LEFT: Priority Path (Feed) */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              Your Priority Path <Award className="text-indigo-500" size={24} />
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {data?.priorityCards?.length > 0 ? (
+              data.priorityCards.map((card: any, i: number) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + (i * 0.1) }}
+                  className="group relative p-6 bg-white dark:bg-[#111827] border border-white/5 rounded-[32px] hover:border-indigo-500/50 transition-all overflow-hidden cursor-pointer"
+                >
+                  <div className={`absolute top-0 right-0 w-24 h-24 blur-3xl opacity-20 -mr-8 -mt-8 ${card.type === 'CORRECT' ? 'bg-red-500' : 'bg-indigo-500'}`} />
+                  
+                  <div className="flex items-center justify-between relative z-10">
+                    <div className="flex gap-5 items-start">
+                      <div className={`p-4 rounded-2xl ${card.bg} ${card.subjectColor}`}>
+                        {card.type === "CORRECT" ? <TrendingUp size={24} /> : <BookOpen size={24} />}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white mb-1">{card.title}</h3>
+                        <p className="text-slate-400 text-sm max-w-md">{card.description}</p>
+                      </div>
+                    </div>
+                    <div className="hidden md:flex p-3 bg-slate-100 dark:bg-slate-800 rounded-full group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-lg">
+                      <ArrowRight size={20} />
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+                <div className="p-12 text-center bg-white/5 rounded-[40px] border border-dashed border-white/10">
+                    <Sparkles className="mx-auto text-indigo-500 mb-4" size={48} />
+                    <h3 className="text-xl font-bold text-white mb-2">You're all caught up!</h3>
+                    <p className="text-slate-400">Add more topics to your Syllabus Planner to see new priority cards.</p>
+                </div>
+            )}
           </div>
         </div>
-        
-        <div className="p-8 bg-white dark:bg-[#111827] rounded-3xl shadow-xl border border-gray-100 dark:border-white/5">
-           <h2 className="text-2xl font-bold mb-6 flex items-center"><Target className="mr-3 text-emerald-500" /> Daily Focus</h2>
-           <div className="space-y-4">
-               <div className="flex flex-col p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border dark:border-white/5">
-                   <div className="flex justify-between items-center mb-2">
-                       <span className="font-bold text-slate-700 dark:text-slate-300">Deep Work</span>
-                       <span className="font-bold text-emerald-600 dark:text-emerald-400">2h / 4h</span>
-                   </div>
-                   <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                       <div className="bg-emerald-500 h-2 rounded-full" style={{ width: "50%" }}></div>
-                   </div>
-               </div>
-               <p className="text-sm text-slate-500 text-center mt-2 italic">Focus on beating your past self, not others.</p>
-           </div>
+
+        {/* RIGHT: Sidebar Highlights */}
+        <div className="space-y-6">
+          <div className="p-8 bg-[#111827] border border-white/5 rounded-[40px] shadow-xl">
+             <div className="flex items-center justify-between mb-8">
+                <h3 className="font-black text-white">Daily Growth</h3>
+                <TrendingUp size={20} className="text-emerald-400" />
+             </div>
+             <div className="h-48">
+                <ProgressChart />
+             </div>
+             <div className="mt-8 pt-8 border-t border-white/5">
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Analyzing your mastery over 7 days. You are currently at your peak growth—keep the momentum!
+                </p>
+             </div>
+          </div>
+
+          <div className="p-8 bg-[#0B0F19] border border-green-500/10 rounded-[40px] relative overflow-hidden group">
+             <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+             <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-green-500/10 text-green-500 rounded-2xl">
+                    <BookOpen size={20} />
+                </div>
+                <h3 className="font-bold text-white">Recent Scans</h3>
+             </div>
+             <div className="space-y-4">
+                {data?.recentNotes?.length > 0 ? data.recentNotes.map((note: any, i: number) => (
+                    <Link href="/notes" key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all cursor-pointer">
+                        <span className="text-sm font-medium text-slate-300 truncate max-w-[150px]">{note.title}</span>
+                        <ChevronRight size={14} className="text-slate-600" />
+                    </Link>
+                )) : (
+                    <p className="text-xs text-slate-600">No notes scanned yet. Head to Study Lens!</p>
+                )}
+             </div>
+          </div>
         </div>
+
       </div>
     </div>
   );
