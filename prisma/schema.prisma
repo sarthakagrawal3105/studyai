@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -45,6 +46,7 @@ model Topic {
   activeLearningStrategy String?
   isCompleted Boolean  @default(false)
   confidence  Int      @default(0) // 0-100%
+  originalTopicId String?
   
   subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   tests       Test[]
@@ -79,6 +81,8 @@ model Question {
   questionText  String
   options       String   // Stored as JSON string
   correctAnswer String
+  userAnswer    String?
+  isCorrect     Boolean?
   explanation   String?
   
   test          Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
