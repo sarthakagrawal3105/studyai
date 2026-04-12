@@ -1,10 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function getNotes(userId: string) {
     return await prisma.note.findMany({
@@ -15,7 +15,7 @@ export async function getNotes(userId: string) {
 
 export async function generateSmartNote(topic: string, mode: "GENERATE" | "REFINE", userId: string, rawContent?: string) {
     try {
-        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
         
         const systemPrompt = mode === "GENERATE" 
             ? `Search and generate a professional, high-level study Note for the topic: "${topic}".`

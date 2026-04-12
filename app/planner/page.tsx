@@ -161,7 +161,13 @@ export default function PlannerPage() {
         setPlan(res.plan);
         toast.success("Timeline generated successfully!");
       } else {
-        toast.error(res.error || "Failed to structure plan. Try another PDF.");
+        // Detailed error handling for Quota/API issues
+        const errorMsg = res.error || "Internal Error";
+        if (errorMsg.includes("Quota") || errorMsg.includes("429")) {
+          toast.error("AI Services Throttled: Free tier quota reached. Please wait 60 seconds and try again.", { duration: 6000 });
+        } else {
+          toast.error(errorMsg);
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Something went wrong.");

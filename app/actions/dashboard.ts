@@ -1,24 +1,37 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function getDashboardData(userId: string) {
     try {
-        // 1. Fetch user profile and study stats
+        // 1. Fetch user profile with all relevant relations
         const user = await prisma.user.findUnique({
             where: { id: userId },
             include: {
                 subjects: {
                     include: {
-                        topics: true,
-                        tests: true
+                        topics: {
+                            include: {
+                                tests: {
+                                    orderBy: { createdAt: 'desc' },
+                                    take: 1
+                                }
+                            }
+                        }
+                    }
+                },
+                tests: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
+                    include: {
+                        topic: true
                     }
                 },
                 notes: {
-                    take: 3,
+                    take: 5,
                     orderBy: { createdAt: 'desc' }
                 }
             }
@@ -26,63 +39,100 @@ export async function getDashboardData(userId: string) {
 
         if (!user) throw new Error("User not found");
 
-        // 2. Core Stats Calculations
+        // 2. Calculations
         const totalTopics = user.subjects.reduce((acc, sub) => acc + sub.topics.length, 0);
         const completedTopics = user.subjects.reduce((acc, sub) => acc + sub.topics.filter(t => t.isCompleted).length, 0);
         const masteryPercentage = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
         
-        // 3. Adaptive AI Logic: Find Priority Topics
-        // Priority topics are those with low test scores OR uncompleted in the syllabus
-        const priorityCards: any[] = [];
-        
-        user.subjects.forEach(subject => {
-            // Find topics with failing tests (< 50%)
-            subject.tests.filter(test => test.score !== null && test.score < 50).forEach(failedTest => {
-                priorityCards.push({
-                    type: "CORRECT",
-                    id: failedTest.id,
-                    title: `Fix: ${subject.name}`,
-                    description: `You struggled with the last test. Let's master the concepts now.`,
-                    subjectColor: "text-red-500",
-                    bg: "bg-red-500/10"
-                });
-            });
+        const validTests = user.tests.filter(t => t.score !== null);
+        const averageScore = validTests.length > 0 
+            ? Math.round(validTests.reduce((acc, t) => acc + (t.score || 0), 0) / validTests.length) 
+            : 0;
 
-            // Find next uncompleted topic
-            const nextTopic = subject.topics.find(t => !t.isCompleted);
-            if (nextTopic && priorityCards.length < 5) {
-                priorityCards.push({
-                    type: "LEARN",
-                    id: nextTopic.id,
-                    title: `Next Up: ${nextTopic.name}`,
-                    description: `Part of ${subject.name}. Your path to mastery continues here.`,
-                    subjectColor: "text-indigo-500",
-                    bg: "bg-indigo-500/10"
-                });
-            }
+        // 3. Subject Mastery Grid Data
+        const subjectStats = user.subjects.map(subject => {
+            const subjectTopics = subject.topics.length;
+            const subjectCompleted = subject.topics.filter(t => t.isCompleted).length;
+            const subjectProgress = subjectTopics > 0 ? Math.round((subjectCompleted / subjectTopics) * 100) : 0;
+            
+            // Get latest score for this subject
+            const subjectTests = subject.topics.flatMap(t => t.tests).filter(test => test.score !== null);
+            const latestScore = subjectTests.length > 0 ? subjectTests[0].score : null;
+
+            return {
+                id: subject.id,
+                name: subject.name,
+                progress: subjectProgress,
+                latestScore,
+                totalTopics: subjectTopics,
+                completedTopics: subjectCompleted,
+                trending: latestScore !== null ? (latestScore >= 70 ? "UP" : "DOWN") : "NEUTRAL"
+            };
         });
 
-        // 4. AI Daily Briefing
-        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-        const briefingPrompt = `
-        You are a supportive, high-energy AI Study Coach. 
-        Student Name: ${user.name || "Innovator"}
-        Mastery: ${masteryPercentage}%
-        Completed Tasks: ${completedTopics}
-        Last 3 Notes: ${user.notes.map(n => n.title).join(", ")}
+        // 4. Assessment Queue (Tests where score is null)
+        const pendingAssessments = user.tests.filter(t => t.score === null).map(t => ({
+            id: t.id,
+            title: t.title,
+            topicName: t.topic?.name || "General",
+            createdAt: t.createdAt
+        }));
 
-        Write a 2-sentence encouraging morning greeting. Focus on personal growth and "Better Everyday" philosophy.
-        `;
+        // 5. Find Next Priority Topic
+        let nextTopic = null;
+        for (const subject of user.subjects) {
+            const found = subject.topics.find(t => !t.isCompleted);
+            if (found) {
+                nextTopic = {
+                    id: found.id,
+                    name: found.name,
+                    subjectName: subject.name,
+                    strategy: found.activeLearningStrategy
+                };
+                break;
+            }
+        }
 
-        const briefingResult = await model.generateContent(briefingPrompt);
-        const briefing = briefingResult.response.text();
+        // 6. AI Daily Briefing (Highly context-aware)
+        let briefing = "Your path to mastery continues today. Let's make every minute count.";
+        try {
+            const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            const briefingPrompt = `
+            You are a supportive, high-energy AI Study Coach. 
+            Student: ${user.name || "Explorer"}
+            Mastery: ${masteryPercentage}%
+            Average Test Score: ${averageScore}%
+            Next Topic: ${nextTopic?.name || "Not set"}
+            
+            Write a 2-sentence encouraging briefing. Mention their average score if it's high, or encourage improvement if low. Focus on the "Better Everyday" philosophy.
+            `;
+
+            const briefingResult = await model.generateContent(briefingPrompt);
+            briefing = briefingResult.response.text();
+        } catch (aiError) {
+            console.error("AI Briefing Error:", aiError);
+        }
 
         return {
-            user,
-            masteryPercentage,
-            priorityCards: priorityCards.slice(0, 4),
+            user: {
+                name: user.name,
+                level: user.level,
+                exp: user.exp,
+                id: user.id
+            },
+            stats: {
+                mastery: masteryPercentage,
+                totalTopics,
+                completedTopics,
+                averageScore,
+                streak: 3 // Placeholder
+            },
+            subjectStats,
+            pendingAssessments,
+            nextTopic,
             aiBriefing: briefing,
-            recentNotes: user.notes
+            recentNotes: user.notes,
+            testHistory: user.tests.map(t => ({ score: t.score, date: t.createdAt })).slice(0, 7)
         };
 
     } catch (error) {

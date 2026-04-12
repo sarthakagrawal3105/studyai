@@ -82,7 +82,7 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
     // Optimsitic update visually not strictly needed here since we show loading, but good for UX if needed.
     // We rely on the loading spinner on modal.
     
-    const res = await toggleTopicCompletion(confirmingTopicId, true);
+    const res = await toggleTopicCompletion(confirmingTopicId, true, prismaUser.id);
     
     if (!res.success) {
       toast.error(res.error || "Failed to generate test");

@@ -76,6 +76,15 @@ Return ONLY a valid, raw JSON object matching EXACTLY this structure (no markdow
     return { success: true, plan };
   } catch (err: any) {
     console.error("Error generating plan:", err);
+    
+    // Check for standard Gemini quota exceeded error
+    if (err.message?.includes("429") || err.message?.toLowerCase().includes("quota")) {
+      return { 
+        success: false, 
+        error: "AI Quota Exceeded. The free tier of Gemini has a limit on requests per minute. Please wait 30-60 seconds and try again." 
+      };
+    }
+    
     return { success: false, error: err.message || "Failed to parse syllabus. Please make sure it's a valid text-based PDF." };
   }
 }

@@ -1,10 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function processTutorResponse(transcript: string, topicName: string, history: any[]) {
     try {
@@ -12,8 +12,8 @@ export async function processTutorResponse(transcript: string, topicName: string
             throw new Error("GEMINI_API_KEY is not configured");
         }
 
-        const model = ai.getGenerativeModel({ 
-            model: "gemini-2.0-flash-exp",
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.0-flash",
             generationConfig: {
                 responseMimeType: "application/json",
             }
@@ -75,7 +75,7 @@ export async function finalizeTutorNotes(transcript: string, topicId: string, us
         
         if (!topic) throw new Error("Topic not found");
 
-        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
         const prompt = `
         Generate a concise, professional study "Cheat Sheet" for the topic: "${topic.name}".
         Base it on this transcript of a successful Feynman explanation session: "${transcript}".

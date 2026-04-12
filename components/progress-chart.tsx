@@ -25,9 +25,9 @@ export default function ProgressChart() {
                 transition={{ duration: 1, delay: i * 0.1, ease: "easeOut" }}
                 className={`w-full max-w-[12px] sm:max-w-[20px] rounded-full ${
                   i === data.length - 1 
-                    ? "bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)]" 
-                    : "bg-slate-200 dark:bg-slate-800 group-hover:bg-slate-300 dark:group-hover:bg-slate-700"
-                } transition-colors`}
+                    ? "bg-gradient-to-t from-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(129,140,248,0.4)]" 
+                    : "bg-indigo-500/20 group-hover:bg-indigo-500/40"
+                } transition-all duration-300`}
               />
             </div>
           </div>

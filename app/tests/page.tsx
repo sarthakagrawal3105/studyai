@@ -1,22 +1,43 @@
-import { prisma } from "@/lib/prisma";
-import Link from "next/link";
-import { ChevronRight, ClipboardList, CheckCircle2, Circle } from "lucide-react";
+"use client"
 
-export default async function TestsPage() {
-  const userId = "user_123";
-  const subjects = await prisma.subject.findMany({
-    where: { userId },
-    include: {
-      topics: {
-        include: { tests: true }
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth-provider";
+import Link from "next/link";
+import { ChevronRight, ClipboardList, Circle, Loader2 } from "lucide-react";
+
+// Using a placeholder for now, but we should use a server action
+import { getDashboardData } from "@/app/actions/dashboard";
+
+export default function TestsPage() {
+  const { prismaUser, loading: authLoading } = useAuth();
+  const [subjectsWithTests, setSubjectsWithTests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTests() {
+      if (prismaUser) {
+        setLoading(true);
+        // We can reuse getDashboardData or create a specific action
+        // For simplicity and since dashboard already has subjects/topics/tests, let's use it.
+        const data = await getDashboardData(prismaUser.id);
+        if (data && data.user && data.user.subjects) {
+          const subjects = data.user.subjects.map((s: any) => {
+            const tests = s.topics.flatMap((t: any) => t.tests);
+            return { ...s, allTests: tests };
+          }).filter((s: any) => s.allTests.length > 0);
+          setSubjectsWithTests(subjects);
+        }
+        setLoading(false);
       }
     }
-  });
+    fetchTests();
+  }, [prismaUser]);
 
-  const subjectsWithTests = subjects.map(s => {
-    const tests = s.topics.flatMap(t => t.tests);
-    return { ...s, allTests: tests };
-  }).filter(s => s.allTests.length > 0);
+  if (authLoading || loading) return (
+    <div className="h-full flex items-center justify-center">
+        <Loader2 className="animate-spin text-indigo-500" />
+    </div>
+  );
 
   return (
     <div className="w-full max-w-7xl mx-auto h-full animate-in fade-in slide-in-from-bottom-4 duration-700">

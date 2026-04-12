@@ -55,11 +55,11 @@ export async function deletePlan(id: string, userId: string) {
 
 import { completeTopicAndGenerateTest } from "./planner";
 
-export async function toggleTopicCompletion(topicId: string, isCompleted: boolean) {
+export async function toggleTopicCompletion(topicId: string, isCompleted: boolean, userId: string) {
   try {
     let testId: string | undefined;
     if (isCompleted) {
-      const res = await completeTopicAndGenerateTest(topicId, DUMMY_USER_ID);
+      const res = await completeTopicAndGenerateTest(topicId, userId);
       if (!res.success) {
         await prisma.topic.update({
           where: { id: topicId },
