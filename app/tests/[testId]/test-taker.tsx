@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { submitAndGradeTest } from "@/app/actions/planner";
-import { CheckCircle2, XCircle, ArrowLeft, BrainCircuit, RefreshCw } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowLeft, BrainCircuit, RefreshCw, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -183,7 +183,7 @@ export default function TestTaker({ test }: { test: TestData }) {
           })}
         </div>
 
-        {!isCompleted && (
+        {!isCompleted ? (
           <div className="p-8 border-t border-gray-100 dark:border-white/5 bg-slate-50 dark:bg-[#151c2c] sticky bottom-0 z-20 flex justify-end items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
             <div className="text-slate-500 dark:text-slate-400 font-medium mr-6">
                {Object.keys(answers).length} of {test.questions.length} answered
@@ -195,6 +195,19 @@ export default function TestTaker({ test }: { test: TestData }) {
             >
                {isSubmitting ? "Grading Test..." : "Submit Test"} 
             </button>
+          </div>
+        ) : (
+          <div className="p-8 border-t border-gray-100 dark:border-white/5 bg-slate-50 dark:bg-[#151c2c] sticky bottom-0 z-20 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+            <div className="text-slate-500 dark:text-slate-400 font-medium italic">
+               Reviewing completed test
+            </div>
+            <Link
+               href="/tests"
+               className="px-8 py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl transition-all shadow-lg shadow-slate-900/30 flex items-center gap-2"
+            >
+               Finish & Return to Hub
+               <ChevronRight size={20} />
+            </Link>
           </div>
         )}
       </div>
