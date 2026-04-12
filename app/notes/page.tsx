@@ -398,7 +398,7 @@ export default function SmartNotesPage() {
                   className="w-full mt-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 group"
                 >
                   {isGenerating ? <Loader2 className="animate-spin" /> : <RefreshCw className="group-hover:rotate-180 transition-transform duration-500" size={20} />}
-                  {isGenerating ? "AI Processing..." : creatorMode === "GENERATE" ? "Generate Master Note" : "Refine and Format"}
+                  {isGenerating ? "AI Processing..." : ["TEACHER", "REVISION", "EXAM"].includes(creatorMode) ? "Generate Master Note" : "Refine and Format"}
                 </button>
               </motion.div>
             </motion.div>

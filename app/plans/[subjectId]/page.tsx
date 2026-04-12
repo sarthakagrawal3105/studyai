@@ -36,6 +36,7 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
   const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({});
   
   const [confirmingTopicId, setConfirmingTopicId] = useState<string | null>(null);
+  const [testIdForRedirect, setTestIdForRedirect] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const router = useRouter();
 
@@ -79,9 +80,6 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
     if (!confirmingTopicId) return;
     setIsGenerating(true);
     
-    // Optimsitic update visually not strictly needed here since we show loading, but good for UX if needed.
-    // We rely on the loading spinner on modal.
-    
     const res = await toggleTopicCompletion(confirmingTopicId, true, prismaUser.id);
     
     if (!res.success) {
@@ -91,12 +89,9 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
       fetchPlan();
     } else {
       toast.success("Topic completed and test generated!");
-      // Skip setting isGenerating false to preserve loading state during redirect
-      if (res.testId) {
-        router.push(`/tests/${res.testId}`);
-      } else {
-        router.push('/tests');
-      }
+      setIsGenerating(false);
+      setTestIdForRedirect(res.testId || "");
+      fetchPlan(); // Refresh background data
     }
   };
 
@@ -279,42 +274,87 @@ export default function PlanDetailsPage({ params }: { params: Promise<{ subjectI
       </div>
 
       <AnimatePresence>
-        {confirmingTopicId && (
+        {(confirmingTopicId || testIdForRedirect !== null) && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-[#111827] rounded-3xl shadow-2xl border border-gray-100 dark:border-white/10 p-8 max-w-md w-full"
+              className="bg-white dark:bg-[#111827] rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/10 p-10 max-w-md w-full relative overflow-hidden"
             >
-              <h3 className="text-2xl font-black mb-2 dark:text-white">Complete Topic</h3>
-              <p className="text-slate-500 mb-8 leading-relaxed">
-                You are about to mark this topic as complete. This action cannot be undone. We will generate an AI test to evaluate your understanding right after.
-              </p>
-              
-              <div className="flex gap-4 w-full">
-                <button 
-                  onClick={() => !isGenerating && setConfirmingTopicId(null)}
-                  disabled={isGenerating}
-                  className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold rounded-xl transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={confirmCompletion}
-                  disabled={isGenerating}
-                  className="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-80"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    "Confirm & Generate"
-                  )}
-                </button>
+              <div className="absolute top-0 right-0 p-8 opacity-5">
+                <CheckCircle2 size={120} className="text-emerald-500" />
               </div>
+
+              {testIdForRedirect !== null ? (
+                <div className="relative z-10 flex flex-col items-center text-center">
+                  <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 text-emerald-500 shadow-lg shadow-emerald-500/20">
+                    <CheckCircle2 size={40} />
+                  </div>
+                  <h3 className="text-3xl font-black mb-3 dark:text-white">Topic Mastered!</h3>
+                  <p className="text-slate-500 mb-10 leading-relaxed font-semibold">
+                    Congratulations! Your AI-personalized comprehension test is ready. Would you like to evaluate your understanding now?
+                  </p>
+                  
+                  <div className="flex flex-col gap-3 w-full">
+                    <button 
+                      onClick={() => {
+                        const id = testIdForRedirect;
+                        setTestIdForRedirect(null);
+                        setConfirmingTopicId(null);
+                        if (id) {
+                          router.push(`/tests/${id}`);
+                        } else {
+                          router.push('/tests');
+                        }
+                      }}
+                      className="w-full py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/20 transition-all active:scale-95"
+                    >
+                      Take Test Now
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setTestIdForRedirect(null);
+                        setConfirmingTopicId(null);
+                      }}
+                      className="w-full py-4 text-slate-500 hover:text-slate-800 dark:hover:text-white font-bold transition-colors"
+                    >
+                      I'll take it later
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative z-10">
+                  <h3 className="text-2xl font-black mb-2 dark:text-white">Mark as Complete?</h3>
+                  <p className="text-slate-500 mb-8 leading-relaxed font-medium">
+                    You're about to mark this topic as complete. We'll generate a personalized AI assessment to verify your mastery.
+                  </p>
+                  
+                  <div className="flex gap-4 w-full">
+                    <button 
+                      onClick={() => !isGenerating && setConfirmingTopicId(null)}
+                      disabled={isGenerating}
+                      className="flex-1 py-4 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-2xl transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={confirmCompletion}
+                      disabled={isGenerating}
+                      className="flex-1 py-4 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-80 active:scale-95"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 size={20} className="animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        "Confirm & Generate"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

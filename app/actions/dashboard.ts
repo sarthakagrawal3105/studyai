@@ -143,7 +143,8 @@ export async function getDashboardData(userId: string) {
                 name: user.name,
                 level: user.level,
                 exp: user.exp,
-                id: user.id
+                id: user.id,
+                subjects: user.subjects
             },
             stats: {
                 mastery: masteryPercentage,

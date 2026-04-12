@@ -35,9 +35,23 @@ export const Sidebar = () => {
     <div className="space-y-4 py-4 flex flex-col h-full bg-[#0B0F19] text-white border-r border-white/10 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
       <div className="px-5 py-6 flex-1 flex flex-col justify-between">
         <div>
-          <Link href="/dashboard" className="flex items-center pl-2 mb-14 drop-shadow-md hover:scale-105 transition-transform duration-300">
-            <div className="relative w-full h-20">
-              <img src="/logo.png" alt="StudyAI Logo" className="w-full h-full object-contain filter invert dark:invert-0" />
+          <Link href="/dashboard" className="block mb-10 group/logo relative">
+            {/* Soft Cloud Glow (Subtle White) */}
+            <div className="absolute inset-0 bg-white/[0.03] blur-[50px] rounded-full scale-125 pointer-events-none" />
+            
+            {/* Ambient Indigo Glow (Subtle) */}
+            <div className="absolute inset-0 bg-indigo-500/[0.05] blur-[40px] rounded-full scale-110 group-hover/logo:bg-indigo-500/10 transition-all duration-1000" />
+            
+            <div className="relative h-24 w-full flex items-center justify-center transition-transform duration-500 group-hover/logo:scale-105">
+              <img 
+                src="/logo.png" 
+                alt="StudyAI Logo" 
+                className="max-w-full max-h-full object-contain rounded-2xl opacity-90 transition-opacity group-hover/logo:opacity-100" 
+                style={{
+                  maskImage: 'radial-gradient(circle, black 70%, transparent 100%)',
+                  WebkitMaskImage: 'radial-gradient(circle, black 70%, transparent 100%)'
+                }}
+              />
             </div>
           </Link>
           <div className="space-y-2">

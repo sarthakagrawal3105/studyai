@@ -28,12 +28,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
 
+  // 1. Initial Auth Mount: Runs once on app start
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
       if (currentUser) {
-        // Sync user with database and store the prisma user profile
+        // Only sync if we haven't already for this user
         const res = await syncUser({
           email: currentUser.email,
           name: currentUser.displayName,
@@ -45,24 +46,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         setPrismaUser(null);
       }
-
       setLoading(false);
-
-      // Simple route protection logic
-      const protectedRoutes = ["/dashboard", "/planner", "/tests", "/notes", "/tutor", "/settings"];
-      const isProtectedRoute = protectedRoutes.some(route => pathname?.startsWith(route));
-
-      if (!currentUser && isProtectedRoute) {
-        router.push("/login");
-      }
-
-      if (currentUser && pathname === "/login") {
-        router.push("/dashboard");
-      }
     });
 
     return () => unsubscribe();
-  }, [pathname, router]);
+  }, []);
+
+  // 2. Route Protection: Runs on route changes
+  useEffect(() => {
+    if (loading) return;
+
+    const protectedRoutes = ["/dashboard", "/planner", "/tests", "/notes", "/tutor", "/settings"];
+    const isProtectedRoute = protectedRoutes.some(route => pathname?.startsWith(route));
+
+    if (!user && isProtectedRoute) {
+      router.push("/login");
+    }
+
+    if (user && pathname === "/login") {
+      router.push("/dashboard");
+    }
+  }, [pathname, user, loading, router]);
 
   return (
     <AuthContext.Provider value={{ user, prismaUser, loading }}>

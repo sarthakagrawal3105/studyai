@@ -13,7 +13,7 @@ interface GraphData {
 }
 
 export default function KnowledgeUniverse({ data }: { data: GraphData }) {
-  const fgRef = useRef<any>();
+  const fgRef = useRef<any>(null);
 
   const processedData = useMemo(() => {
     return {

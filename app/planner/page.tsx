@@ -181,6 +181,10 @@ export default function PlannerPage() {
       toast.error("You must be signed in to save a plan.");
       return;
     }
+    if (!file || !plan) {
+      toast.error("No plan or file available to save.");
+      return;
+    }
     setIsSaving(true);
     const res = await saveSyllabusPlan(plan, prismaUser.id, file.name);
     setIsSaving(false);
