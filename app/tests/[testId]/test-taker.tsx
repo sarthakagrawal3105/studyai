@@ -75,13 +75,13 @@ export default function TestTaker({ test }: { test: TestData }) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto h-full flex flex-col pt-4 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="w-full max-w-4xl mx-auto flex flex-col pt-4 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <Link href="/tests" className="text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 w-fit transition-colors font-medium mb-6">
         <ArrowLeft size={16} /> Back to Tests Hub
       </Link>
 
-      <div className="bg-white dark:bg-[#111827] rounded-3xl shadow-xl overflow-hidden border border-gray-100 dark:border-white/5 mb-8">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white relative">
+      <div className="bg-white dark:bg-[#111827] rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-white/5 mb-8 relative">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white relative rounded-t-[2.5rem] overflow-hidden">
           <BrainCircuit className="absolute top-1/2 right-4 -translate-y-1/2 opacity-10" size={150} />
           <div className="relative z-10">
              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-3 inline-block">
@@ -184,29 +184,29 @@ export default function TestTaker({ test }: { test: TestData }) {
         </div>
 
         {!isCompleted ? (
-          <div className="p-8 border-t border-gray-100 dark:border-white/5 bg-slate-50 dark:bg-[#151c2c] sticky bottom-0 z-20 flex justify-end items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-            <div className="text-slate-500 dark:text-slate-400 font-medium mr-6">
-               {Object.keys(answers).length} of {test.questions.length} answered
+          <div className="p-6 border-t border-gray-100 dark:border-white/5 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl sticky bottom-4 z-30 flex justify-end items-center shadow-2xl rounded-2xl mx-6 mb-6 border border-indigo-500/20">
+            <div className="text-slate-500 dark:text-slate-400 font-bold text-sm mr-6">
+               Progress: {Object.keys(answers).length} / {test.questions.length}
             </div>
             <button
                disabled={isSubmitting}
                onClick={handleSubmit}
-               className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50 flex items-center gap-2"
+               className="px-10 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl transition-all shadow-xl shadow-indigo-600/30 disabled:opacity-50 flex items-center gap-2 uppercase tracking-widest text-xs"
             >
-               {isSubmitting ? "Grading Test..." : "Submit Test"} 
+               {isSubmitting ? "Syncing..." : "Submit for Grading"} 
             </button>
           </div>
         ) : (
-          <div className="p-8 border-t border-gray-100 dark:border-white/5 bg-slate-50 dark:bg-[#151c2c] sticky bottom-0 z-20 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-            <div className="text-slate-500 dark:text-slate-400 font-medium italic">
-               Reviewing completed test
+          <div className="p-6 border-t border-gray-100 dark:border-white/5 bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur-xl sticky bottom-4 z-30 flex justify-between items-center shadow-2xl rounded-2xl mx-6 mb-6 border border-white/10">
+            <div className="text-slate-300 font-bold text-sm italic">
+               Review Mode Active
             </div>
             <Link
                href="/tests"
-               className="px-8 py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl transition-all shadow-lg shadow-slate-900/30 flex items-center gap-2"
+               className="px-10 py-4 bg-white text-slate-900 font-black rounded-xl transition-all shadow-xl flex items-center gap-2 uppercase tracking-widest text-xs"
             >
-               Finish & Return to Hub
-               <ChevronRight size={20} />
+               Finish & Return
+               <ChevronRight size={18} />
             </Link>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Plus, 
   Search, 
@@ -13,11 +13,14 @@ import {
   Loader2,
   ChevronRight,
   X,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  Award,
+  BarChart3
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth-provider";
-import { getNotes, generateSmartNote, deleteNote } from "@/app/actions/notes";
+import { getNotes, generateSmartNote, deleteNote, type NoteMode } from "@/app/actions/notes";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { jsPDF } from "jspdf";
@@ -33,9 +36,11 @@ export default function SmartNotesPage() {
   const [showCreator, setShowCreator] = useState(false);
   
   // Creator State
-  const [creatorMode, setCreatorMode] = useState<"GENERATE" | "REFINE">("GENERATE");
+  const [creatorMode, setCreatorMode] = useState<NoteMode>("TEACHER");
   const [topicInput, setTopicInput] = useState("");
   const [rawContent, setRawContent] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (prismaUser) {
@@ -56,13 +61,40 @@ export default function SmartNotesPage() {
 
   const handleCreateNote = async () => {
     if (!prismaUser) return;
-    if (creatorMode === "GENERATE" && !topicInput) return;
-    if (creatorMode === "REFINE" && !rawContent) return;
+    
+    // Validation: CLEANER and COMPARE usually need raw context, others might just need topic
+    if (["TEACHER", "REVISION", "EXAM"].includes(creatorMode) && !topicInput) {
+        toast.error("Please enter a topic.");
+        return;
+    }
+    if (["CLEANER", "COMPARE"].includes(creatorMode) && !rawContent) {
+        toast.error("Please provide the source text/content.");
+        return;
+    }
 
     setIsGenerating(true);
-    const toastId = toast.loading(creatorMode === "GENERATE" ? "Generating Master Note..." : "Refining your notes...");
+    const toastId = toast.loading(creatorMode === "TEACHER" ? "Generating Master Note..." : "Processing toolkit...");
     
-    const res = await generateSmartNote(topicInput, creatorMode, prismaUser.id, rawContent);
+    let attachmentData = undefined;
+    if (selectedFile) {
+        // Convert to base64 (Browser compatible)
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve) => {
+          reader.onload = () => {
+            const base64String = (reader.result as string).split(',')[1];
+            resolve(base64String);
+          };
+          reader.readAsDataURL(selectedFile);
+        });
+        
+        const base64 = await base64Promise;
+        attachmentData = {
+            data: base64,
+            mimeType: selectedFile.type
+        };
+    }
+    
+    const res = await generateSmartNote(topicInput, creatorMode, prismaUser.id, rawContent, attachmentData);
     setIsGenerating(false);
 
     if (res.success) {
@@ -73,7 +105,7 @@ export default function SmartNotesPage() {
       setRawContent("");
       toast.success("Note created!", { id: toastId });
     } else {
-      toast.error("Failed to generate note.", { id: toastId });
+      toast.error(res.error || "Failed to generate note.", { id: toastId });
     }
   };
 
@@ -92,19 +124,59 @@ export default function SmartNotesPage() {
   };
 
   const exportToPDF = async () => {
-    const element = document.getElementById("note-content");
-    if (!element) return;
+    if (!selectedNote || !prismaUser) return;
     
-    const toastId = toast.loading("Preparing PDF...");
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    pdf.save(`${selectedNote.title.replace(/\s+/g, '_')}.pdf`);
-    toast.success("Downloaded!", { id: toastId });
+    // Create a hidden temporary container for the branded PDF
+    const exportContainer = document.createElement("div");
+    exportContainer.style.position = "fixed";
+    exportContainer.style.left = "-9999px";
+    exportContainer.style.top = "0";
+    exportContainer.style.width = "800px";
+    exportContainer.style.backgroundColor = "white";
+    exportContainer.style.padding = "40px";
+    exportContainer.style.color = "#111827";
+    document.body.appendChild(exportContainer);
+
+    exportContainer.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 40px; font-family: Inter, sans-serif;">
+        <div style="display: flex; justify-between; items-center; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;">
+          <div style="display: flex; items-center; gap: 15px;">
+            <img src="/logo.png" style="height: 60px; filter: none;" />
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.1em; text-transform: uppercase;">Verified Study Analysis</div>
+            <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${prismaUser.name || "StudyAI Scholar"}</div>
+            <div style="font-size: 10px; color: #94a3b8;">${new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+        
+        <div style="font-size: 14px; line-height: 1.6;">
+            ${document.getElementById("note-content-raw")?.innerHTML || ""}
+        </div>
+        
+        <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #f1f5f9; font-size: 10px; color: #94a3b8; text-align: center;">
+            Generated by StudyAI &copy; ${new Date().getFullYear()} - Your Personal Knowledge Engineer
+        </div>
+      </div>
+    `;
+
+    const toastId = toast.loading("Engineered Branded PDF...");
+    try {
+      const canvas = await html2canvas(exportContainer, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+      pdf.save(`StudyAI_${selectedNote.title.replace(/\s+/g, '_')}.pdf`);
+      toast.success("Branded PDF Downloaded!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed.", { id: toastId });
+    } finally {
+      document.body.removeChild(exportContainer);
+    }
   };
 
   if (authLoading) return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-indigo-500" /></div>;
@@ -198,7 +270,7 @@ export default function SmartNotesPage() {
                   <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                      <Sparkles size={80} className="text-indigo-500" />
                   </div>
-                  <div className="prose prose-invert max-w-none prose-h1:text-4xl prose-h1:font-black prose-h2:text-2xl prose-h2:font-bold prose-h2:text-indigo-400 prose-p:text-slate-300 prose-p:leading-relaxed prose-strong:text-white prose-code:bg-slate-800 prose-code:p-1 prose-code:rounded prose-blockquote:border-indigo-500">
+                  <div id="note-content-raw" className="prose prose-invert max-w-none prose-h1:text-4xl prose-h1:font-black prose-h2:text-2xl prose-h2:font-bold prose-h2:text-indigo-400 prose-p:text-slate-300 prose-p:leading-relaxed prose-strong:text-white prose-code:bg-slate-800 prose-code:p-1 prose-code:rounded prose-blockquote:border-indigo-500">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {selectedNote.content}
                     </ReactMarkdown>
@@ -241,48 +313,84 @@ export default function SmartNotesPage() {
                     </button>
                 </div>
 
-                <div className="flex gap-2 p-1 bg-black/20 rounded-2xl mb-8">
-                   <button 
-                    onClick={() => setCreatorMode("GENERATE")}
-                    className={`flex-1 py-3 rounded-xl font-bold transition-all ${creatorMode === "GENERATE" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-white"}`}
-                   >
-                    Generate From Topic
-                   </button>
-                   <button 
-                    onClick={() => setCreatorMode("REFINE")}
-                    className={`flex-1 py-3 rounded-xl font-bold transition-all ${creatorMode === "REFINE" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-white"}`}
-                   >
-                    Refine My Text
-                   </button>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+                   {[
+                     { id: "TEACHER", label: "Expert Teacher", icon: BookOpen, desc: "10-point Ultra-Smart notes", color: "text-blue-400" },
+                     { id: "REVISION", label: "Speed Revision", icon: Zap, desc: "8-10 points for 1-min read", color: "text-amber-400" },
+                     { id: "EXAM", label: "Exam Ready", icon: Award, desc: "10-mark structured answers", color: "text-emerald-400" },
+                     { id: "CLEANER", label: "OCR Cleaner", icon: RefreshCw, desc: "Fix messy PDF/Scan text", color: "text-purple-400" },
+                     { id: "COMPARE", label: "Compare AI", icon: BarChart3, desc: "Automatic comparison tables", color: "text-rose-400" },
+                   ].map((mode) => (
+                     <button 
+                        key={mode.id}
+                        onClick={() => setCreatorMode(mode.id as NoteMode)}
+                        className={`flex flex-col items-center gap-3 p-4 rounded-[2rem] border transition-all text-center ${
+                           creatorMode === mode.id 
+                            ? "bg-indigo-600 border-indigo-500 text-white shadow-xl scale-105" 
+                            : "bg-black/20 border-white/5 text-slate-500 hover:border-white/10 hover:text-white"
+                        }`}
+                     >
+                        <mode.icon size={24} className={creatorMode === mode.id ? "text-white" : mode.color} />
+                        <div className="space-y-1">
+                           <div className="text-[10px] font-black uppercase tracking-widest">{mode.label}</div>
+                           {creatorMode === mode.id && <div className="text-[8px] opacity-70 font-medium leading-tight">{mode.desc}</div>}
+                        </div>
+                     </button>
+                   ))}
                 </div>
 
-                {creatorMode === "GENERATE" ? (
-                    <div className="space-y-6">
+                <div className="space-y-6">
+                    {["TEACHER", "REVISION", "EXAM"].includes(creatorMode) ? (
+                        <div className="flex flex-col gap-6">
                         <div>
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">What's the topic?</label>
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Subject / Topic</label>
                             <input 
                               type="text" 
                               value={topicInput}
                               onChange={(e) => setTopicInput(e.target.value)}
-                              placeholder="e.g. Photosynthesis in Plants" 
+                              placeholder="e.g. Thermodynamics or Quantum Computing" 
                               className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                             />
                         </div>
+
+                        <div className="flex flex-col gap-3">
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Reference Attachment (Optional PDF/Image)</label>
+                            <input 
+                              type="file" 
+                              accept="image/*,application/pdf"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setSelectedFile(file);
+                                  toast.success(`Selected Reference: ${file.name}`);
+                                }
+                              }}
+                              className="hidden" 
+                              id="ref-upload"
+                              ref={fileInputRef}
+                            />
+                            <label 
+                              htmlFor="ref-upload"
+                              className="w-full h-24 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500/50 hover:bg-white/5 transition-all text-slate-500 group"
+                            >
+                                <Plus size={20} className="group-hover:scale-110 transition-transform mb-1" />
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Attach Material</span>
+                            </label>
+                        </div>
                     </div>
-                ) : (
-                    <div className="space-y-6">
+                    ) : (
                         <div>
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Paste your raw notes</label>
+                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Source Content (Paste Here)</label>
                             <textarea 
                               value={rawContent}
                               onChange={(e) => setRawContent(e.target.value)}
-                              placeholder="Paste text from a lecture, a book, or your class notes..." 
-                              rows={8}
+                              placeholder="Paste text from a lecture, a book, or messy OCR/PDF scans..." 
+                              rows={6}
                               className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium resize-none"
                             />
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 <button 
                   disabled={isGenerating}

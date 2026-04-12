@@ -13,49 +13,108 @@ export async function getNotes(userId: string) {
     });
 }
 
-export async function generateSmartNote(topic: string, mode: "GENERATE" | "REFINE", userId: string, rawContent?: string) {
+export type NoteMode = "TEACHER" | "REVISION" | "EXAM" | "CLEANER" | "COMPARE";
+
+export async function generateSmartNote(topic: string, mode: NoteMode, userId: string, rawContent?: string, attachment?: { data: string, mimeType: string }) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
         
-        const systemPrompt = mode === "GENERATE" 
-            ? `Search and generate a professional, high-level study Note for the topic: "${topic}".`
-            : `Refine and structure the following raw student notes into a professional study Note: "${rawContent}".`;
+        const inputData = rawContent || topic;
+        let systemPrompt = "";
+
+        switch (mode) {
+            case "TEACHER":
+                systemPrompt = `
+                You are an expert teacher. Convert the input into the "Ultra-Smart" note format.
+                STRICT INSTRUCTIONS:
+                - Use VERY SIMPLE language.
+                - Avoid long paragraphs; use bullet points wherever possible.
+                - Highlight important terms with **bold**.
+                - Make it EASY to revise in less than 2 minutes.
+                
+                OUTPUT FORMAT (STRICTLY FOLLOW):
+                1. 📌 Title
+                2. 📖 Definition (2-3 lines only)
+                3. 🔑 Key Points (1 line per bullet)
+                4. 🧠 Explanation (Use sub-headings, no long paragraphs)
+                5. 📊 Diagram / Flow (Text-based steps/process)
+                6. 🧪 Examples
+                7. 🏷️ Keywords (Max 15 terms)
+                8. 📝 5-Mark Answer (5-6 points)
+                9. 🧾 10-Mark Answer (Intro + Points + Conclusion)
+                10. ⚡ Quick Revision (6-8 ultra-short bullets)
+                `;
+                break;
+            case "REVISION":
+                systemPrompt = `
+                Convert the input into ultra-short revision notes.
+                RULES: 8-10 bullet points max, only key facts, no explanations, 1-minute read time.
+                `;
+                break;
+            case "EXAM":
+                systemPrompt = `
+                Generate an exam-ready 10-mark answer.
+                REQUIRED STRUCTURE: Introduction, Main content with headings, Conclusion. Simple language.
+                `;
+                break;
+            case "CLEANER":
+                systemPrompt = `
+                You are an AI that cleans and organizes messy OCR/PDF notes.
+                TASKS: Correct spelling/spelling, fix sentence structure, organize with headings, highlight important terms.
+                `;
+                break;
+            case "COMPARE":
+                systemPrompt = `
+                Convert the input into a professional comparison table using Markdown formatting.
+                Include features, differences, and examples.
+                `;
+                break;
+        }
 
         const prompt = `
         ${systemPrompt}
         
-        YOUR NOTE FORMAT (Markdown):
-        # [Clear Title]
+        INPUT DATA: "${inputData}"
         
-        ## 📝 Executive Summary
-        [2-3 sentence overview of the "Big Picture"]
+        INSTRUCTIONS:
+        - Use simple and clear language.
+        - Focus only on important concepts.
+        - Structure with professional Markdown.
         
-        ## 🧠 Core Concepts
-        [Structured deep-dive with bullet points and bolded terms]
-        
-        ## 💡 Memory Tricks (Mnemonics)
-        [Provide 1-2 tricks or analogies to remember this easily]
-        
-        ## ⚠️ Common Pitfalls
-        [Things students usually get wrong about this]
-        
-        ---
-        ## 🧪 Active Recall Check
-        1. [Self-test Question 1]
-        2. [Self-test Question 2]
-        3. [Self-test Question 3]
-        
-        Return the response as a JSON object:
+        Return the result as a JSON object:
         {
-            "title": "Clean Note Title",
-            "content": "Full Markdown content starting from headers"
+            "title": "Clean & Descriptive Title",
+            "content": "Full formatted Markdown content"
         }
         `;
 
-        const result = await model.generateContent(prompt);
+        const promptContent = attachment ? [
+            {
+                inlineData: {
+                    data: attachment.data,
+                    mimeType: attachment.mimeType
+                }
+            },
+            prompt
+        ] : prompt;
+
+        const result = await model.generateContent(promptContent);
         const text = result.response.text();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        const data = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+        
+        // Robust JSON extraction
+        let data;
+        try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            const jsonStr = jsonMatch ? jsonMatch[0] : text;
+            data = JSON.parse(jsonStr);
+        } catch (e) {
+            console.error("AI JSON Parse Error. Raw Text:", text);
+            throw new Error("AI returned an invalid format. Please try again.");
+        }
+
+        if (!data.title || !data.content) {
+            throw new Error("AI response missing title or content.");
+        }
 
         const note = await prisma.note.create({
             data: {
@@ -68,8 +127,8 @@ export async function generateSmartNote(topic: string, mode: "GENERATE" | "REFIN
         revalidatePath("/notes");
         return { success: true, note };
     } catch (error: any) {
-        console.error("Smart Note Error:", error);
-        return { success: false, error: error.message };
+        console.error("Full Smart Note Error:", error);
+        return { success: false, error: error.message || "Unknown error occurred" };
     }
 }
 

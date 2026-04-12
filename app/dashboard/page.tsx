@@ -168,13 +168,18 @@ export default function DashboardPage() {
                         <span className="text-indigo-200 text-sm font-medium">Ready for Mastery</span>
                       </div>
                     </div>
-                    <Link href="/planner" className="flex items-center gap-3 bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-sm hover:gap-5 transition-all w-fit">
+                    <Link href={`/plans/${data.nextTopic.subjectId}`} className="flex items-center gap-3 bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-sm hover:gap-5 transition-all w-fit">
                       RESUME PLAN <ArrowRight size={18} />
                     </Link>
                   </div>
                 ) : (
-                  <div className="text-white text-xl font-bold opacity-80 py-4">
-                    Your syllabus is currently empty. Start by uploading a PDF!
+                  <div className="flex flex-col gap-4">
+                    <h2 className="text-2xl font-bold text-white leading-tight">
+                        Your study path is a blank canvas.
+                    </h2>
+                    <Link href="/planner" className="flex items-center gap-3 bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-sm hover:gap-5 transition-all w-fit">
+                      UPLOAD SYLLABUS <ArrowRight size={18} />
+                    </Link>
                   </div>
                 )}
               </div>
@@ -260,7 +265,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
                <h3 className="text-xs uppercase tracking-[0.3em] font-black text-slate-500 px-2">Assessment Queue</h3>
                <div className="space-y-3">
-                  {data?.pendingAssessments?.length > 0 ? data.pendingAssessments.map((test: any, i: number) => (
+                  {data?.pendingAssessments?.length > 0 ? data.pendingAssessments.slice(0, 3).map((test: any, i: number) => (
                     <motion.div 
                       key={i}
                       variants={itemVariants}
@@ -271,11 +276,11 @@ export default function DashboardPage() {
                           <Zap size={18} />
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-white">{test.title}</div>
+                          <div className="text-sm font-bold text-white truncate max-w-[120px]">{test.title}</div>
                           <div className="text-[10px] text-slate-500 font-medium">Topic: {test.topicName}</div>
                         </div>
                       </div>
-                      <Link href={`/test/${test.id}`} className="p-2 bg-indigo-500 text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                      <Link href={`/tests/${test.id}`} className="p-2 bg-indigo-500 text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
                          <ChevronRight size={18} />
                       </Link>
                     </motion.div>
@@ -298,15 +303,22 @@ export default function DashboardPage() {
                 <BarChart3 size={18} className="text-emerald-400" />
               </div>
               <div className="h-32 mb-6">
-                <ProgressChart />
+                <ProgressChart 
+                    data={data?.testHistory?.map((h: any) => h.score) || []} 
+                    labels={data?.testHistory?.map((h: any) => h.label) || []} 
+                />
               </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500 font-bold uppercase">Learning Velocity</span>
-                  <span className="text-emerald-400 text-xs font-black">+14% Weekly</span>
+                  <span className="text-emerald-400 text-xs font-black">+{data?.stats?.mastery || 0}% Growth</span>
                 </div>
                 <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                   <div className="w-[70%] h-full bg-emerald-500" />
+                   <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${data?.stats?.mastery || 0}%` }}
+                    className="h-full bg-emerald-500" 
+                   />
                 </div>
               </div>
             </motion.div>

@@ -5,6 +5,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+// Simple in-memory cache to prevent 429 Quota errors during development
+const briefingCache: Record<string, { text: string; expiry: number }> = {};
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export async function getDashboardData(userId: string) {
     try {
         // 1. Fetch user profile with all relevant relations
@@ -86,6 +90,7 @@ export async function getDashboardData(userId: string) {
                 nextTopic = {
                     id: found.id,
                     name: found.name,
+                    subjectId: subject.id,
                     subjectName: subject.name,
                     strategy: found.activeLearningStrategy
                 };
@@ -93,24 +98,44 @@ export async function getDashboardData(userId: string) {
             }
         }
 
-        // 6. AI Daily Briefing (Highly context-aware)
+        // 6. AI Daily Briefing (Highly context-aware with Caching)
         let briefing = "Your path to mastery continues today. Let's make every minute count.";
-        try {
-            const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-            const briefingPrompt = `
-            You are a supportive, high-energy AI Study Coach. 
-            Student: ${user.name || "Explorer"}
-            Mastery: ${masteryPercentage}%
-            Average Test Score: ${averageScore}%
-            Next Topic: ${nextTopic?.name || "Not set"}
-            
-            Write a 2-sentence encouraging briefing. Mention their average score if it's high, or encourage improvement if low. Focus on the "Better Everyday" philosophy.
-            `;
+        
+        const now = Date.now();
+        if (briefingCache[userId] && briefingCache[userId].expiry > now) {
+            briefing = briefingCache[userId].text;
+        } else {
+            try {
+                const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+                const briefingPrompt = `
+                You are a supportive, high-energy AI Study Coach. 
+                Student: ${user.name || "Explorer"}
+                Mastery: ${masteryPercentage}%
+                Average Test Score: ${averageScore}%
+                Next Topic: ${nextTopic?.name || "Not set"}
+                
+                Write a 2-sentence encouraging briefing. Focus on growth mindset.
+                `;
 
-            const briefingResult = await model.generateContent(briefingPrompt);
-            briefing = briefingResult.response.text();
-        } catch (aiError) {
-            console.error("AI Briefing Error:", aiError);
+                const briefingResult = await model.generateContent(briefingPrompt);
+                briefing = briefingResult.response.text();
+                
+                // Store in cache
+                briefingCache[userId] = {
+                    text: briefing,
+                    expiry: now + CACHE_DURATION
+                };
+            } catch (aiError: any) {
+                console.error("AI Briefing Error:", aiError);
+                // Fallback if cached version exists but expired
+                if (briefingCache[userId]) {
+                    briefing = briefingCache[userId].text;
+                }
+                
+                if (aiError.message?.includes("429")) {
+                    briefing = "AI Briefing is resting (Rate Limit). " + briefing;
+                }
+            }
         }
 
         return {
@@ -132,7 +157,10 @@ export async function getDashboardData(userId: string) {
             nextTopic,
             aiBriefing: briefing,
             recentNotes: user.notes,
-            testHistory: user.tests.map(t => ({ score: t.score, date: t.createdAt })).slice(0, 7)
+            testHistory: user.tests.filter(t => t.score !== null).map(t => ({ 
+                score: t.score, 
+                label: new Date(t.createdAt).toLocaleDateString('en-US', { weekday: 'short' }) 
+            })).slice(0, 7)
         };
 
     } catch (error) {

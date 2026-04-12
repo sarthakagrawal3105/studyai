@@ -36,14 +36,9 @@ export const Sidebar = () => {
       <div className="px-5 py-6 flex-1 flex flex-col justify-between">
         <div>
           <Link href="/dashboard" className="flex items-center pl-2 mb-14 drop-shadow-md hover:scale-105 transition-transform duration-300">
-            <div className="relative w-10 h-10 mr-4">
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center justify-center">
-                  <span className="font-extrabold text-white text-xl">S</span>
-              </div>
+            <div className="relative w-full h-20">
+              <img src="/logo.png" alt="StudyAI Logo" className="w-full h-full object-contain filter invert dark:invert-0" />
             </div>
-            <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">
-              StudyAI
-            </h1>
           </Link>
           <div className="space-y-2">
             {routes.map((route) => (
