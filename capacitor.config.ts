@@ -5,8 +5,7 @@ const config: CapacitorConfig = {
   appName: 'StudyAI',
   webDir: 'out',
   server: {
-    // IMPORTANT: Replace this with your actual Vercel/Public URL
-    url: 'https://studyai-innovator.vercel.app',
+    url: 'https://studyai-ayae3dmdq-sarthakagrawal3105-4415s-projects.vercel.app',
     cleartext: true
   }
 };
