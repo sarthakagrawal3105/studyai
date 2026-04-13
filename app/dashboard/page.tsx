@@ -296,8 +296,10 @@ export default function DashboardPage() {
             {/* GROWTH ANALYTICS (SMALL GRAPH) */}
             <motion.div 
               variants={itemVariants}
-              className="p-8 bg-[#111827]/50 border border-white/5 rounded-[40px] shadow-2xl"
+              className="p-8 bg-[#111827]/50 border border-white/5 rounded-[40px] shadow-2xl relative overflow-hidden group/chart"
             >
+              <div className="absolute inset-0 bg-indigo-500/[0.02] group-hover/chart:bg-indigo-500/[0.05] transition-colors pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
               <div className="flex items-center justify-between mb-8">
                 <h3 className="font-black text-white text-sm uppercase tracking-wider">Growth Trends</h3>
                 <BarChart3 size={18} className="text-emerald-400" />
@@ -310,14 +312,14 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-bold uppercase">Learning Velocity</span>
-                  <span className="text-emerald-400 text-xs font-black">+{data?.stats?.mastery || 0}% Growth</span>
+                  <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Neural Trace</span>
+                  <span className="text-indigo-400 text-xs font-black">+{data?.stats?.mastery || 0}% Growth</span>
                 </div>
                 <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
                    <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${data?.stats?.mastery || 0}%` }}
-                    className="h-full bg-emerald-500" 
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(129,140,248,0.5)]" 
                    />
                 </div>
               </div>

@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Scan,
   X,
-  Plus
+  Plus,
+  ArrowLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -68,16 +69,21 @@ export default function StudyLensPage() {
 
   return (
     <div className="flex flex-col gap-8 w-full max-w-5xl mx-auto h-full animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
-          Study Lens <Scan className="text-indigo-500" />
-        </h1>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+            <Link href="/notes" className="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl transition-all border border-white/5">
+                <ArrowLeft size={20} />
+            </Link>
+            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
+              Study Lens <Scan className="text-indigo-500 hidden md:block" />
+            </h1>
+        </div>
         {image && (
           <button 
             onClick={reset}
-            className="p-2 text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-widest"
+            className="p-2 text-slate-400 hover:text-red-400 transition-colors flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/5 px-4 rounded-xl border border-white/5"
           >
-            <X size={14} /> Clear
+            <X size={14} /> <span className="hidden sm:inline">Cancel Scan</span>
           </button>
         )}
       </div>
@@ -200,13 +206,13 @@ export default function StudyLensPage() {
                     </div>
                 </div>
 
-                <div className="p-8 bg-emerald-500/10 border border-emerald-500/20 rounded-[40px] flex items-center justify-between">
-                    <div>
-                        <h4 className="text-emerald-500 font-bold">Successfully Archived!</h4>
-                        <p className="text-xs text-slate-400">This analysis has been saved to your Study Library.</p>
+                <div className="p-8 bg-indigo-500/10 border border-indigo-500/20 rounded-[40px] flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-indigo-500/10 backdrop-blur-sm">
+                    <div className="text-center md:text-left">
+                        <h4 className="text-indigo-400 font-black text-lg mb-1">Knowledge Sync Complete</h4>
+                        <p className="text-xs text-slate-400">Your digitized notes are securely archived in the library.</p>
                     </div>
-                    <Link href="/notes" className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl transition-all flex items-center gap-2 shrink-0">
-                        View Note <ArrowRight size={18} />
+                    <Link href="/notes" className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-indigo-600/30">
+                        Enter Study Library <ArrowRight size={18} />
                     </Link>
                 </div>
             </div>

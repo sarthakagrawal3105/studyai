@@ -26,6 +26,8 @@ import remarkGfm from "remark-gfm";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import toast from "react-hot-toast";
+import Link from "next/link";
+import { ArrowLeft, ScanSearch } from "lucide-react";
 
 export default function SmartNotesPage() {
   const { prismaUser, loading: authLoading } = useAuth();
@@ -34,12 +36,22 @@ export default function SmartNotesPage() {
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showCreator, setShowCreator] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  
+  // Handle mobile responsiveness for sidebars
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth < 1024);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   
   // Creator State
   const [creatorMode, setCreatorMode] = useState<NoteMode>("TEACHER");
   const [topicInput, setTopicInput] = useState("");
   const [rawContent, setRawContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sourceType, setSourceType] = useState<"TOPIC" | "URL" | "TEXT">("TOPIC");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -184,23 +196,32 @@ export default function SmartNotesPage() {
   return (
     <div className="flex h-full w-full overflow-hidden bg-[#0a0a0f] text-slate-200">
       {/* LEFT SIDEBAR: Notes List */}
-      <div className="w-80 md:w-96 border-r border-white/5 flex flex-col bg-[#0f0f1a] relative z-20">
+      <div className={`w-full md:w-80 lg:w-96 shrink-0 border-r border-white/5 flex flex-col bg-[#0f0f1a] relative z-20 ${selectedNote && isMobileView ? 'hidden' : 'flex'}`}>
         <div className="p-6 border-b border-white/5 space-y-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-black text-white">Smart Notes</h1>
-            <button 
-              onClick={() => setShowCreator(true)}
-              className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/20"
-            >
-              <Plus size={20} />
-            </button>
+            <div className="flex gap-2">
+              <Link
+                href="/lens"
+                className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-xl transition-all border border-indigo-500/20"
+                title="AI Study Lens"
+              >
+                <ScanSearch size={20} />
+              </Link>
+              <button 
+                onClick={() => setShowCreator(true)}
+                className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
             <input 
               type="text" 
               placeholder="Search notes..." 
-              className="w-full bg-black/20 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+              className="w-full bg-black/20 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-white"
             />
           </div>
         </div>
@@ -209,8 +230,17 @@ export default function SmartNotesPage() {
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-600" /></div>
           ) : notes.length === 0 ? (
-            <div className="text-center py-10 px-6">
-                <p className="text-slate-500 text-sm">No notes yet. Create your first one!</p>
+            <div className="text-center py-20 px-6 space-y-4">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto text-slate-700">
+                    <FileText size={32} />
+                </div>
+                <p className="text-slate-500 text-sm font-medium">No notes yet. Start by creating one or using Study Lens!</p>
+                <Link 
+                    href="/lens"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest"
+                >
+                    <ScanSearch size={14} /> Try Study Lens
+                </Link>
             </div>
           ) : (
             notes.map((note) => (
@@ -247,30 +277,42 @@ export default function SmartNotesPage() {
       </div>
 
       {/* RIGHT: Note Viewer */}
-      <div className="flex-1 flex flex-col relative bg-[#0a0a0f] overflow-hidden">
+      <div className={`flex-1 flex flex-col relative bg-[#0a0a0f] overflow-hidden ${!selectedNote && isMobileView ? 'hidden' : 'flex'}`}>
         {selectedNote ? (
           <>
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/10 backdrop-blur-sm relative z-10">
-              <div className="flex items-center gap-3">
-                 <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                    <BookOpen size={20} />
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/10 backdrop-blur-md sticky top-0 z-30">
+              <div className="flex items-center gap-4">
+                 {isMobileView && (
+                    <button 
+                      onClick={() => setSelectedNote(null)}
+                      className="p-2 bg-white/5 text-slate-400 hover:text-white rounded-lg"
+                    >
+                      <ArrowLeft size={18} />
+                    </button>
+                 )}
+                 <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                        <BookOpen size={20} />
+                    </div>
+                    <h2 className="text-base md:text-xl font-bold text-white truncate max-w-[200px] md:max-w-md">{selectedNote.title}</h2>
                  </div>
-                 <h2 className="text-xl font-bold text-white group">{selectedNote.title}</h2>
               </div>
-              <button 
-                onClick={exportToPDF}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 border border-white/5"
-              >
-                <Download size={16} /> Export PDF
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={exportToPDF}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs md:text-sm font-bold rounded-xl transition-all flex items-center gap-2 border border-white/5"
+                >
+                  <Download size={16} /> <span className="hidden md:inline">Export PDF</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 md:p-12">
-               <div id="note-content" className="max-w-4xl mx-auto bg-white/5 p-12 rounded-[40px] border border-white/5 shadow-2xl relative">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 bg-black/5">
+               <div id="note-content" className="max-w-5xl mx-auto bg-white/5 p-6 md:p-10 lg:p-16 rounded-[40px] border border-white/5 shadow-2xl relative">
                   <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                      <Sparkles size={80} className="text-indigo-500" />
                   </div>
-                  <div id="note-content-raw" className="prose prose-invert max-w-none prose-h1:text-4xl prose-h1:font-black prose-h2:text-2xl prose-h2:font-bold prose-h2:text-indigo-400 prose-p:text-slate-300 prose-p:leading-relaxed prose-strong:text-white prose-code:bg-slate-800 prose-code:p-1 prose-code:rounded prose-blockquote:border-indigo-500">
+                  <div id="note-content-raw" className="prose prose-invert max-w-none prose-h1:text-4xl prose-h1:font-black prose-h2:text-2xl prose-h2:font-bold prose-h2:text-indigo-400 prose-p:text-slate-300 prose-p:leading-relaxed prose-strong:text-white prose-code:bg-slate-800 prose-code:p-1 prose-code:rounded prose-blockquote:border-indigo-500 overflow-x-auto">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {selectedNote.content}
                     </ReactMarkdown>
@@ -295,14 +337,14 @@ export default function SmartNotesPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-6"
+              className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl overflow-y-auto pt-10 pb-20 px-4 md:px-10 flex justify-center"
             >
               <motion.div 
-                initial={{ scale: 0.9, y: 20 }}
+                initial={{ scale: 0.9, y: 30 }}
                 animate={{ scale: 1, y: 0 }}
-                className="w-full max-w-2xl bg-[#11111a] border border-white/10 rounded-[40px] p-10 shadow-3xl overflow-hidden relative"
+                className="w-full max-w-2xl bg-[#11111a] border border-white/10 rounded-[40px] p-6 md:p-10 shadow-3xl relative h-fit mb-10"
               >
-                <div className="absolute top-0 right-0 p-8 opacity-5">
+                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                     <Sparkles size={120} />
                 </div>
                 
@@ -313,7 +355,7 @@ export default function SmartNotesPage() {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+                <div className="flex flex-wrap justify-center gap-3 mb-8">
                    {[
                      { id: "TEACHER", label: "Expert Teacher", icon: BookOpen, desc: "10-point Ultra-Smart notes", color: "text-blue-400" },
                      { id: "REVISION", label: "Speed Revision", icon: Zap, desc: "8-10 points for 1-min read", color: "text-amber-400" },
@@ -324,7 +366,7 @@ export default function SmartNotesPage() {
                      <button 
                         key={mode.id}
                         onClick={() => setCreatorMode(mode.id as NoteMode)}
-                        className={`flex flex-col items-center gap-3 p-4 rounded-[2rem] border transition-all text-center ${
+                        className={`relative z-10 flex flex-col items-center gap-3 p-4 w-[130px] md:w-[160px] rounded-[2rem] border transition-all text-center ${
                            creatorMode === mode.id 
                             ? "bg-indigo-600 border-indigo-500 text-white shadow-xl scale-105" 
                             : "bg-black/20 border-white/5 text-slate-500 hover:border-white/10 hover:text-white"
@@ -340,66 +382,124 @@ export default function SmartNotesPage() {
                 </div>
 
                 <div className="space-y-6">
-                    {["TEACHER", "REVISION", "EXAM"].includes(creatorMode) ? (
-                        <div className="flex flex-col gap-6">
-                        <div>
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Subject / Topic</label>
-                            <input 
-                              type="text" 
-                              value={topicInput}
-                              onChange={(e) => setTopicInput(e.target.value)}
-                              placeholder="e.g. Thermodynamics or Quantum Computing" 
-                              className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                            />
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Reference Attachment (Optional PDF/Image)</label>
-                            <input 
-                              type="file" 
-                              accept="image/*,application/pdf"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  setSelectedFile(file);
-                                  toast.success(`Selected Reference: ${file.name}`);
-                                }
-                              }}
-                              className="hidden" 
-                              id="ref-upload"
-                              ref={fileInputRef}
-                            />
-                            <label 
-                              htmlFor="ref-upload"
-                              className="w-full h-24 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500/50 hover:bg-white/5 transition-all text-slate-500 group"
+                    {/* Source Selection Tabs */}
+                    <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5">
+                        {[
+                            { id: "TOPIC", label: "AI Search", icon: Search },
+                            { id: "URL", label: "Paste Link", icon: Plus },
+                            { id: "TEXT", label: "Paste Text", icon: FileText },
+                        ].map((src) => (
+                            <button
+                                key={src.id}
+                                onClick={() => setSourceType(src.id as any)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                    sourceType === src.id 
+                                    ? "bg-indigo-600 text-white shadow-lg" 
+                                    : "text-slate-500 hover:text-white"
+                                }`}
                             >
-                                <Plus size={20} className="group-hover:scale-110 transition-transform mb-1" />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Attach Material</span>
-                            </label>
-                        </div>
+                                <src.icon size={14} /> {src.label}
+                            </button>
+                        ))}
                     </div>
+
+                    {sourceType === "TOPIC" ? (
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Topic or Subject</label>
+                                <input 
+                                    type="text" 
+                                    value={topicInput}
+                                    onChange={(e) => setTopicInput(e.target.value)}
+                                    placeholder="e.g. Quantum Physics or World War II" 
+                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                />
+                            </div>
+                            <div className="p-6 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
+                                <p className="text-[10px] text-indigo-300 font-medium leading-relaxed">
+                                    Our AI will perform a deep dive using its internal knowledge library. Perfect for learning new subjects from scratch without any source text.
+                                </p>
+                            </div>
+                        </div>
+                    ) : sourceType === "URL" ? (
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Web Content / Article Link</label>
+                                <input 
+                                    type="url" 
+                                    value={rawContent}
+                                    onChange={(e) => setRawContent(e.target.value)}
+                                    placeholder="https://en.wikipedia.org/wiki/..." 
+                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                />
+                            </div>
+                            <div className="p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10">
+                                <p className="text-[10px] text-blue-300 font-medium leading-relaxed">
+                                    Paste a link to any website, blog, or documentation. We'll extract the core knowledge and transform it into Smart Notes.
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         <div>
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Source Content (Paste Here)</label>
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Source Content (Paste Here)</label>
                             <textarea 
-                              value={rawContent}
-                              onChange={(e) => setRawContent(e.target.value)}
-                              placeholder="Paste text from a lecture, a book, or messy OCR/PDF scans..." 
-                              rows={6}
-                              className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium resize-none"
+                                value={rawContent}
+                                onChange={(e) => setRawContent(e.target.value)}
+                                placeholder="Paste text from a lecture, a book, or messy OCR/PDF scans..." 
+                                rows={6}
+                                className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium resize-none"
                             />
                         </div>
                     )}
+
+                    <div className="flex flex-col gap-3">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Reference Attachment (Optional PDF/Image)</label>
+                        <input 
+                            type="file" 
+                            accept="image/*,application/pdf"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    setSelectedFile(file);
+                                    toast.success(`Selected Reference: ${file.name}`);
+                                }
+                            }}
+                            className="hidden" 
+                            id="ref-upload"
+                            ref={fileInputRef}
+                        />
+                        <label 
+                            htmlFor="ref-upload"
+                            className="w-full h-24 border-2 border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500/50 hover:bg-white/5 transition-all text-slate-500 group"
+                        >
+                            {selectedFile ? (
+                                <span className="text-white text-xs font-bold">{selectedFile.name}</span>
+                            ) : (
+                                <>
+                                    <Plus size={20} className="group-hover:scale-110 transition-transform mb-1" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">Attach Material</span>
+                                </>
+                            )}
+                        </label>
+                    </div>
                 </div>
 
-                <button 
-                  disabled={isGenerating}
-                  onClick={handleCreateNote}
-                  className="w-full mt-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 group"
-                >
-                  {isGenerating ? <Loader2 className="animate-spin" /> : <RefreshCw className="group-hover:rotate-180 transition-transform duration-500" size={20} />}
-                  {isGenerating ? "AI Processing..." : ["TEACHER", "REVISION", "EXAM"].includes(creatorMode) ? "Generate Master Note" : "Refine and Format"}
-                </button>
+                <div className="flex flex-col md:flex-row gap-4 mt-10">
+                    <button 
+                        onClick={() => setShowCreator(false)}
+                        className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white font-bold rounded-2xl transition-all border border-white/5"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        disabled={isGenerating}
+                        onClick={handleCreateNote}
+                        className="flex-[2] py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 group"
+                    >
+                        {isGenerating ? <Loader2 className="animate-spin" /> : <RefreshCw className="group-hover:rotate-180 transition-transform duration-500" size={20} />}
+                        {isGenerating ? "AI Processing..." : ["TEACHER", "REVISION", "EXAM"].includes(creatorMode) ? "Generate Master Note" : "Refine and Format"}
+                    </button>
+                </div>
               </motion.div>
             </motion.div>
           )}

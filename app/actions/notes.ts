@@ -17,7 +17,28 @@ export async function generateSmartNote(topic: string, mode: NoteMode, userId: s
     try {
         // Removed local model init
         
-        const inputData = rawContent || topic;
+        let finalInput = rawContent || topic;
+
+        // Simple URL detection and scraping
+        if (rawContent && rawContent.startsWith("http")) {
+            try {
+                const response = await fetch(rawContent);
+                const html = await response.text();
+                // Simple regex to extract text content, removing scripts/styles/tags
+                const cleanText = html
+                    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "")
+                    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gmi, "")
+                    .replace(/<[^>]+>/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .slice(0, 10000); // Limit to 10k chars for stability
+                
+                finalInput = `SOURCE URL: ${rawContent}\n\nEXTRACTED CONTENT:\n${cleanText}`;
+            } catch (err) {
+                console.error("Scraping failed, falling back to URL only:", err);
+            }
+        }
+        
         let systemPrompt = "";
 
         switch (mode) {
@@ -72,7 +93,7 @@ export async function generateSmartNote(topic: string, mode: NoteMode, userId: s
         const prompt = `
         ${systemPrompt}
         
-        INPUT DATA: "${inputData}"
+        INPUT DATA: "${finalInput}"
         
         INSTRUCTIONS:
         - Use simple and clear language.
