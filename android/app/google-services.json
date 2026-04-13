@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "632622209852",
+    "project_id": "studyai-7e4cb",
+    "storage_bucket": "studyai-7e4cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:632622209852:android:91fc0b372ff9c0c3369c39",
+        "android_client_info": {
+          "package_name": "com.studyai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "632622209852-cve91u83hc9kndpljmmdvoql188fdjm0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studyai.app",
+            "certificate_hash": "32d7410ec1f90cea1b2982d47a2e559835e7813f"
+          }
+        },
+        {
+          "client_id": "632622209852-aq0tfg8mdn0bcv2881s22c33qsr34j0n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUs58WOzrdIpg-TOQUnleOUvGg7MgCCKs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "632622209852-aq0tfg8mdn0bcv2881s22c33qsr34j0n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
