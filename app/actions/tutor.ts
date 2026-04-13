@@ -1,24 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { runWithRotation } from "@/lib/gemini";
 import { revalidatePath } from "next/cache";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function processTutorResponse(transcript: string, topicName: string, history: any[]) {
     try {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is not configured");
-        }
-
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-flash-latest",
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        });
-        
         const systemPrompt = `
         You are an elite, high-energy AI Study Coach using the Feynman Technique. 
         Your personality: Enthusiastic, supportive, uses "Hype" language, and acts like a personal trainer for the brain.
@@ -41,7 +28,10 @@ export async function processTutorResponse(transcript: string, topicName: string
         }
         `;
 
-        const result = await model.generateContent(systemPrompt);
+        const result = await runWithRotation(async (model) => {
+            return await model.generateContent(systemPrompt);
+        }, "gemini-flash-latest", { responseMimeType: "application/json" });
+        
         const responseText = result.response.text();
         
         console.log("AI Response Raw:", responseText);
@@ -75,7 +65,6 @@ export async function finalizeTutorNotes(transcript: string, topicId: string, us
         
         if (!topic) throw new Error("Topic not found");
 
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
         const prompt = `
         Generate a concise, professional study "Cheat Sheet" for the topic: "${topic.name}".
         Base it on this transcript of a successful Feynman explanation session: "${transcript}".
@@ -87,7 +76,10 @@ export async function finalizeTutorNotes(transcript: string, topicId: string, us
         - Include a "One-Sentence Summary".
         `;
 
-        const result = await model.generateContent(prompt);
+        const result = await runWithRotation(async (model) => {
+            return await model.generateContent(prompt);
+        });
+        
         const content = result.response.text();
 
         // Save note to database

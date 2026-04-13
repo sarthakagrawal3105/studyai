@@ -1,9 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import { runWithRotation } from "@/lib/gemini";
 
 // Simple in-memory cache to prevent 429 Quota errors during development
 const briefingCache: Record<string, { text: string; expiry: number }> = {};
@@ -106,7 +104,6 @@ export async function getDashboardData(userId: string) {
             briefing = briefingCache[userId].text;
         } else {
             try {
-                const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
                 const briefingPrompt = `
                 You are a supportive, high-energy AI Study Coach. 
                 Student: ${user.name || "Explorer"}
@@ -117,7 +114,9 @@ export async function getDashboardData(userId: string) {
                 Write a 2-sentence encouraging briefing. Focus on growth mindset.
                 `;
 
-                const briefingResult = await model.generateContent(briefingPrompt);
+                const briefingResult = await runWithRotation(async (model) => {
+                    return await model.generateContent(briefingPrompt);
+                });
                 briefing = briefingResult.response.text();
                 
                 // Store in cache

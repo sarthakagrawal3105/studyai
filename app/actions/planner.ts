@@ -1,11 +1,8 @@
 "use server";
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "@/lib/prisma";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+import { runWithRotation } from "@/lib/gemini";
 
 export async function generateSyllabusPlan(formData: FormData) {
   try {
@@ -56,15 +53,17 @@ Return ONLY a valid, raw JSON object matching EXACTLY this structure (no markdow
 }
 `;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: "application/pdf"
+    const result = await runWithRotation(async (model) => {
+      return await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: "application/pdf"
+          }
         }
-      }
-    ]);
+      ]);
+    });
 
     const response = await result.response;
     const text = response.text() || "";
@@ -177,7 +176,9 @@ Return ONLY a valid, raw JSON object matching exactly this structure (no markdow
 }
 `;
 
-    const result = await model.generateContent(prompt);
+    const result = await runWithRotation(async (model) => {
+      return await model.generateContent(prompt);
+    });
     const response = await result.response;
     const text = response.text() || "";
     let testData;

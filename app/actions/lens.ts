@@ -1,19 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { runWithRotation } from "@/lib/gemini";
 import { revalidatePath } from "next/cache";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function analyzeStudyImage(base64Image: string, userId: string) {
     try {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is not configured");
-        }
-
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-        
         // Remove the data URI prefix (e.g., "data:image/jpeg;base64,")
         const imageData = base64Image.split(",")[1];
         
@@ -35,15 +27,17 @@ export async function analyzeStudyImage(base64Image: string, userId: string) {
         }
         `;
 
-        const result = await model.generateContent([
-            {
-                inlineData: {
-                    data: imageData,
-                    mimeType: "image/jpeg"
-                }
-            },
-            prompt
-        ]);
+        const result = await runWithRotation(async (model) => {
+            return await model.generateContent([
+                {
+                    inlineData: {
+                        data: imageData,
+                        mimeType: "image/jpeg"
+                    }
+                },
+                prompt
+            ]);
+        });
 
         const responseText = result.response.text();
         // Extract JSON from potential markdown wrapping

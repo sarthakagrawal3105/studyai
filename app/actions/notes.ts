@@ -1,10 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { runWithRotation } from "@/lib/gemini";
 import { revalidatePath } from "next/cache";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function getNotes(userId: string) {
     return await prisma.note.findMany({
@@ -17,7 +15,7 @@ export type NoteMode = "TEACHER" | "REVISION" | "EXAM" | "CLEANER" | "COMPARE";
 
 export async function generateSmartNote(topic: string, mode: NoteMode, userId: string, rawContent?: string, attachment?: { data: string, mimeType: string }) {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        // Removed local model init
         
         const inputData = rawContent || topic;
         let systemPrompt = "";
@@ -98,7 +96,9 @@ export async function generateSmartNote(topic: string, mode: NoteMode, userId: s
             prompt
         ] : prompt;
 
-        const result = await model.generateContent(promptContent);
+        const result = await runWithRotation(async (model) => {
+            return await model.generateContent(promptContent);
+        });
         const text = result.response.text();
         
         // Robust JSON extraction
