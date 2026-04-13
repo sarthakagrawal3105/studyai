@@ -19,12 +19,19 @@ export default function ProgressChart({
 
   // Generate SVG Path for a smooth curve
   const points = useMemo(() => {
-    return data.map((value, i) => ({
-      x: (i * (width - padding * 2)) / (data.length - 1) + padding,
-      y: height - (value / 100) * (height - padding * 2) - padding,
-      val: value
-    }));
-  }, [data]);
+    return data.map((value, i) => {
+      const centerX = width / 2;
+      const x = data.length > 1 
+        ? (i * (width - padding * 2)) / (data.length - 1) + padding 
+        : centerX;
+        
+      return {
+        x,
+        y: height - (value / 100) * (height - padding * 2) - padding,
+        val: value
+      };
+    });
+  }, [data, width, padding, height]);
 
   const linePath = useMemo(() => {
     if (points.length < 2) return "";
@@ -134,7 +141,7 @@ export default function ProgressChart({
       </div>
       
       {/* Labels */}
-      <div className="flex justify-between w-full mt-4 px-1">
+      <div className={`flex w-full mt-4 px-1 ${data.length > 1 ? "justify-between" : "justify-center"}`}>
         {labels.map((label, i) => (
           <span key={i} className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
             {label}
