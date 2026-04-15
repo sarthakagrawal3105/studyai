@@ -17,10 +17,10 @@ export const LayoutShell = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="h-screen w-full relative overflow-hidden">
-      <div className="hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 bg-slate-900 border-r border-slate-800 z-50">
+      <div className="hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 bg-[#0B0F19] dark:bg-[#0B0F19] border-r border-slate-200 dark:border-white/10 z-50">
         <Sidebar />
       </div>
-      <main className="md:pl-72 flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      <div className="md:pl-72 flex flex-col h-full w-full bg-white dark:bg-slate-950 overflow-hidden">
         <Navbar />
         <div className={cn(
             "flex-1 overflow-auto",
@@ -28,7 +28,7 @@ export const LayoutShell = ({ children }: { children: React.ReactNode }) => {
         )}>
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 };

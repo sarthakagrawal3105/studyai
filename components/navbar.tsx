@@ -9,8 +9,8 @@ export const Navbar = () => {
   const router = useRouter()
 
   return (
-    <div className="flex items-center justify-between px-8 py-4 bg-white/50 dark:bg-[#0B0F19]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10 sticky top-0 z-50 transition-all">
-      <div className="text-xl font-bold tracking-tight hidden md:block bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+    <div className="flex items-center justify-between px-8 py-4 bg-white/70 dark:bg-[#0B0F19]/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-50 transition-all">
+      <div className="text-xl font-bold tracking-tight hidden md:block bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-700 dark:from-indigo-400 dark:to-purple-400">
         Welcome back, Innovator 🚀
       </div>
       <div className="flex w-full justify-end items-center gap-x-6">
