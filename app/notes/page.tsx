@@ -77,7 +77,13 @@ export default function SmartNotesPage() {
     if (!prismaUser) return;
     
     // Validation: CLEANER and COMPARE usually need raw context, others might just need topic
-    if (["TEACHER", "REVISION", "EXAM"].includes(creatorMode) && !topicInput) {
+    // Validation: EXAM mode can proceed with just a question, others need topic or content
+    if (creatorMode === "EXAM") {
+        if (!topicInput && !examQuestion) {
+            toast.error("Please enter a topic or a specific question.");
+            return;
+        }
+    } else if (["TEACHER", "REVISION"].includes(creatorMode) && !topicInput) {
         toast.error("Please enter a topic.");
         return;
     }
@@ -109,7 +115,7 @@ export default function SmartNotesPage() {
     }
     
     const res = await generateSmartNote(
-        topicInput, 
+        topicInput || (creatorMode === "EXAM" ? examQuestion : "") || "Smart Note", 
         creatorMode, 
         prismaUser.id, 
         rawContent, 
