@@ -31,22 +31,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // 1. Initial Auth Mount: Runs once on app start
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      
-      if (currentUser) {
-        // Only sync if we haven't already for this user
-        const res = await syncUser({
-          email: currentUser.email,
-          name: currentUser.displayName,
-          phoneNumber: currentUser.phoneNumber
-        });
-        if (res.success) {
-          setPrismaUser(res.user);
+      try {
+        setUser(currentUser);
+        if (currentUser) {
+          const res = await syncUser({
+            email: currentUser.email,
+            name: currentUser.displayName,
+            phoneNumber: currentUser.phoneNumber
+          });
+          if (res.success) {
+            setPrismaUser(res.user);
+          }
+        } else {
+          setPrismaUser(null);
         }
-      } else {
-        setPrismaUser(null);
+      } catch (err) {
+        console.error("Auth sync error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -56,15 +59,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (loading) return;
 
-    const protectedRoutes = ["/dashboard", "/planner", "/tests", "/notes", "/tutor", "/settings"];
+    const protectedRoutes = ["/dashboard", "/planner", "/tests", "/notes", "/tutor", "/settings", "/lens"];
     const isProtectedRoute = protectedRoutes.some(route => pathname?.startsWith(route));
 
     if (!user && isProtectedRoute) {
-      router.push("/login");
+        window.location.href = "/login"; // Force 100% immediate redirect
+        return;
     }
 
     if (user && pathname === "/login") {
-      router.push("/dashboard");
+        router.push("/dashboard");
     }
   }, [pathname, user, loading, router]);
 
