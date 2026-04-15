@@ -2,18 +2,11 @@
 
 import { ThemeToggle } from "./theme-toggle"
 import { useAuth } from "@/components/auth-provider"
-import { auth } from "@/lib/firebase"
-import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
 
 export const Navbar = () => {
   const { user } = useAuth()
   const router = useRouter()
-
-  const handleLogout = async () => {
-    await signOut(auth)
-    router.push("/login")
-  }
 
   return (
     <div className="flex items-center justify-between px-8 py-4 bg-white/50 dark:bg-[#0B0F19]/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/10 sticky top-0 z-50 transition-all">
@@ -27,12 +20,6 @@ export const Navbar = () => {
             <span className="text-sm font-medium text-slate-300 hidden sm:block">
               {user.phoneNumber || user.email || "Student"}
             </span>
-            <button 
-              onClick={handleLogout}
-              className="text-sm text-pink-500 hover:text-pink-400 font-bold"
-            >
-              Logout
-            </button>
             <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 p-[2px] cursor-pointer hover:scale-110 transition-transform">
                 <div className="h-full w-full rounded-full bg-[#0B0F19] flex items-center justify-center overflow-hidden">
                     {user.photoURL ? (

@@ -16,20 +16,10 @@ const routes = [
 ]
 
 import { useAuth } from "@/components/auth-provider"
-import { auth } from "@/lib/firebase"
-import { signOut } from "firebase/auth"
-import { useRouter } from "next/navigation"
-import { LogOut } from "lucide-react"
-
 export const Sidebar = () => {
   const pathname = usePathname()
   const { user } = useAuth()
   const router = useRouter()
-
-  const handleLogout = async () => {
-    await signOut(auth)
-    router.push("/login")
-  }
 
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-[#0B0F19] text-white border-r border-white/10 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
@@ -98,13 +88,6 @@ export const Sidebar = () => {
                 </div>
               </div>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="w-full flex items-center px-3 py-2 text-sm font-medium text-pink-500 hover:text-pink-400 hover:bg-pink-500/10 rounded-xl transition-all"
-            >
-              <LogOut className="h-5 w-5 mr-3" />
-              Logout Account
-            </button>
           </div>
         )}
       </div>
