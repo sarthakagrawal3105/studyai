@@ -31,23 +31,42 @@ export async function generateSmartNote(
             try {
                 const response = await fetch(url, {
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Referer': 'https://www.google.com/',
+                        'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+                        'Sec-Ch-Ua-Mobile': '?0',
+                        'Sec-Ch-Ua-Platform': '"Windows"',
                     }
                 });
+                
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error("This website is protected (403 Forbidden). Please copy and paste the text content directly using the 'Paste Text' tab.");
+                    }
+                    throw new Error(`Failed to access the website (Status: ${response.status}). Please check the link or use 'Paste Text'.`);
+                }
+
                 const html = await response.text();
                 
                 // Slightly more robust content extraction
                 const cleanText = html
                     .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "")
                     .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gmi, "")
-                    .replace(/<[^>]+>/g, "\n") // Newline instead of space helps separate lines
-                    .replace(/\n\s*\n/g, "\n") // Remove excessive empty lines
+                    .replace(/<[^>]+>/g, "\n")
+                    .replace(/\n\s*\n/g, "\n")
                     .trim()
-                    .slice(0, 15000); // Increased limit slightly
+                    .slice(0, 15000);
                 
+                if (cleanText.length < 100) {
+                    throw new Error("Could not extract enough content from this link. The site might be protected or requires JavaScript. Please use 'Paste Text'.");
+                }
+
                 finalInput = `SOURCE URL: ${url}\n\nEXTRACTED CONTENT:\n${cleanText}`;
-            } catch (err) {
-                console.error("Scraping failed, falling back to URL only:", err);
+            } catch (err: any) {
+                console.error("Scraping failed:", err);
+                throw new Error(err.message || "Failed to scrape the link. Please use 'Paste Text'.");
             }
         }
         

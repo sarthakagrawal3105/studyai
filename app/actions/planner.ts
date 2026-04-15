@@ -247,6 +247,25 @@ export async function submitAndGradeTest(testId: string, answers: Record<string,
       data: { score }
     });
 
+    // Award XP and Leveling
+    if (score >= 70) {
+        const user = await prisma.user.findUnique({ where: { id: test.userId } });
+        if (user) {
+            let newExp = user.exp + 50;
+            let newLevel = user.level;
+            
+            if (newExp >= 100) {
+                newLevel += Math.floor(newExp / 100);
+                newExp = newExp % 100;
+            }
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { exp: newExp, level: newLevel }
+            });
+        }
+    }
+
     let revisionCreated = false;
 
     if (score < 70 && test.topic) {

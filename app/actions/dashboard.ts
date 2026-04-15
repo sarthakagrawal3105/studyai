@@ -150,7 +150,36 @@ export async function getDashboardData(userId: string) {
                 totalTopics,
                 completedTopics,
                 averageScore,
-                streak: 3 // Placeholder
+                streak: (function() {
+                    if (user.tests.length === 0) return 0;
+                    
+                    // Group test dates by YYYY-MM-DD
+                    const activeDates = Array.from(new Set(
+                        user.tests.map(t => new Date(t.createdAt).toISOString().split('T')[0])
+                    )).sort((a, b) => b.localeCompare(a)); // Sort descending (most recent first)
+
+                    if (activeDates.length === 0) return 0;
+
+                    const today = new Date().toISOString().split('T')[0];
+                    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                    
+                    // If no activity today or yesterday, streak is broken
+                    if (activeDates[0] !== today && activeDates[0] !== yesterday) return 0;
+
+                    let currentStreak = 1;
+                    for (let i = 0; i < activeDates.length - 1; i++) {
+                        const current = new Date(activeDates[i]);
+                        const next = new Date(activeDates[i + 1]);
+                        const diffInDays = (current.getTime() - next.getTime()) / (1000 * 3600 * 24);
+                        
+                        if (diffInDays === 1) {
+                            currentStreak++;
+                        } else {
+                            break;
+                        }
+                    }
+                    return currentStreak;
+                })()
             },
             subjectStats,
             pendingAssessments,

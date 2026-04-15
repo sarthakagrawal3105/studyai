@@ -428,6 +428,7 @@ export default function SmartNotesPage() {
                                     value={topicInput}
                                     onChange={(e) => setTopicInput(e.target.value)}
                                     placeholder="e.g. Quantum Physics or World War II" 
+                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                                 />
                             </div>
 
