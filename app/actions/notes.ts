@@ -13,27 +13,39 @@ export async function getNotes(userId: string) {
 
 export type NoteMode = "TEACHER" | "REVISION" | "EXAM" | "CLEANER" | "COMPARE";
 
-export async function generateSmartNote(topic: string, mode: NoteMode, userId: string, rawContent?: string, attachment?: { data: string, mimeType: string }) {
+export async function generateSmartNote(
+    topic: string, 
+    mode: NoteMode, 
+    userId: string, 
+    rawContent?: string, 
+    attachment?: { data: string, mimeType: string },
+    examQuestion?: string,
+    examMarks?: string | number
+) {
     try {
-        // Removed local model init
-        
         let finalInput = rawContent || topic;
 
-        // Simple URL detection and scraping
-        if (rawContent && rawContent.startsWith("http")) {
+        // Improved URL detection and scraping
+        if (rawContent && (rawContent.startsWith("http") || rawContent.includes("."))) {
+            const url = rawContent.startsWith("http") ? rawContent : `https://${rawContent}`;
             try {
-                const response = await fetch(rawContent);
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
                 const html = await response.text();
-                // Simple regex to extract text content, removing scripts/styles/tags
+                
+                // Slightly more robust content extraction
                 const cleanText = html
                     .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "")
                     .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gmi, "")
-                    .replace(/<[^>]+>/g, " ")
-                    .replace(/\s+/g, " ")
+                    .replace(/<[^>]+>/g, "\n") // Newline instead of space helps separate lines
+                    .replace(/\n\s*\n/g, "\n") // Remove excessive empty lines
                     .trim()
-                    .slice(0, 10000); // Limit to 10k chars for stability
+                    .slice(0, 15000); // Increased limit slightly
                 
-                finalInput = `SOURCE URL: ${rawContent}\n\nEXTRACTED CONTENT:\n${cleanText}`;
+                finalInput = `SOURCE URL: ${url}\n\nEXTRACTED CONTENT:\n${cleanText}`;
             } catch (err) {
                 console.error("Scraping failed, falling back to URL only:", err);
             }
@@ -71,9 +83,17 @@ export async function generateSmartNote(topic: string, mode: NoteMode, userId: s
                 `;
                 break;
             case "EXAM":
+                const markInfo = examMarks ? `${examMarks}-mark` : "detailed";
+                const questionInfo = examQuestion ? `regarding the specific question: "${examQuestion}"` : "";
+                
                 systemPrompt = `
-                Generate an exam-ready 10-mark answer.
-                REQUIRED STRUCTURE: Introduction, Main content with headings, Conclusion. Simple language.
+                Generate an exam-ready ${markInfo} answer ${questionInfo}.
+                REQUIRED STRUCTURE:
+                - Introduction (Setting context)
+                - Main Answer with professional headings
+                - Point-wise explanation (Easy for examiners to read)
+                - Conclusion (Summary of key takeaway)
+                Use simple, professional English.
                 `;
                 break;
             case "CLEANER":

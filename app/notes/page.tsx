@@ -52,6 +52,8 @@ export default function SmartNotesPage() {
   const [rawContent, setRawContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sourceType, setSourceType] = useState<"TOPIC" | "URL" | "TEXT">("TOPIC");
+  const [examQuestion, setExamQuestion] = useState("");
+  const [examMarks, setExamMarks] = useState("10");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -106,7 +108,15 @@ export default function SmartNotesPage() {
         };
     }
     
-    const res = await generateSmartNote(topicInput, creatorMode, prismaUser.id, rawContent, attachmentData);
+    const res = await generateSmartNote(
+        topicInput, 
+        creatorMode, 
+        prismaUser.id, 
+        rawContent, 
+        attachmentData,
+        creatorMode === "EXAM" ? examQuestion : undefined,
+        creatorMode === "EXAM" ? examMarks : undefined
+    );
     setIsGenerating(false);
 
     if (res.success) {
@@ -412,9 +422,34 @@ export default function SmartNotesPage() {
                                     value={topicInput}
                                     onChange={(e) => setTopicInput(e.target.value)}
                                     placeholder="e.g. Quantum Physics or World War II" 
-                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
                                 />
                             </div>
+
+                            {creatorMode === "EXAM" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Specific Question (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            value={examQuestion}
+                                            onChange={(e) => setExamQuestion(e.target.value)}
+                                            placeholder="Paste exact question here..." 
+                                            className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Marks Weighting</label>
+                                        <input 
+                                            type="text" 
+                                            value={examMarks}
+                                            onChange={(e) => setExamMarks(e.target.value)}
+                                            placeholder="e.g. 5, 10, 15" 
+                                            className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="p-6 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
                                 <p className="text-[10px] text-indigo-300 font-medium leading-relaxed">
                                     Our AI will perform a deep dive using its internal knowledge library. Perfect for learning new subjects from scratch without any source text.
@@ -423,32 +458,106 @@ export default function SmartNotesPage() {
                         </div>
                     ) : sourceType === "URL" ? (
                         <div className="space-y-6">
-                            <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Web Content / Article Link</label>
-                                <input 
-                                    type="url" 
-                                    value={rawContent}
-                                    onChange={(e) => setRawContent(e.target.value)}
-                                    placeholder="https://en.wikipedia.org/wiki/..." 
-                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Topic / Title</label>
+                                    <input 
+                                        type="text" 
+                                        value={topicInput}
+                                        onChange={(e) => setTopicInput(e.target.value)}
+                                        placeholder="Note title..." 
+                                        className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Web Link</label>
+                                    <input 
+                                        type="url" 
+                                        value={rawContent}
+                                        onChange={(e) => setRawContent(e.target.value)}
+                                        placeholder="https://..." 
+                                        className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                    />
+                                </div>
                             </div>
+
+                            {creatorMode === "EXAM" && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Specific Question (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            value={examQuestion}
+                                            onChange={(e) => setExamQuestion(e.target.value)}
+                                            placeholder="Paste exact question here..." 
+                                            className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Marks Weighting</label>
+                                        <input 
+                                            type="text" 
+                                            value={examMarks}
+                                            onChange={(e) => setExamMarks(e.target.value)}
+                                            placeholder="e.g. 5, 10, 15" 
+                                            className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10">
                                 <p className="text-[10px] text-blue-300 font-medium leading-relaxed">
-                                    Paste a link to any website, blog, or documentation. We'll extract the core knowledge and transform it into Smart Notes.
+                                    Paste a link to any website. We'll extract the core knowledge and transform it into Smart Notes.
                                 </p>
                             </div>
                         </div>
                     ) : (
-                        <div>
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Source Content (Paste Here)</label>
-                            <textarea 
-                                value={rawContent}
-                                onChange={(e) => setRawContent(e.target.value)}
-                                placeholder="Paste text from a lecture, a book, or messy OCR/PDF scans..." 
-                                rows={6}
-                                className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium resize-none"
-                            />
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Topic / Title</label>
+                                <input 
+                                    type="text" 
+                                    value={topicInput}
+                                    onChange={(e) => setTopicInput(e.target.value)}
+                                    placeholder="e.g. History of Rome" 
+                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium mb-4"
+                                />
+                                
+                                {creatorMode === "EXAM" && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Specific Question (Optional)</label>
+                                            <input 
+                                                type="text" 
+                                                value={examQuestion}
+                                                onChange={(e) => setExamQuestion(e.target.value)}
+                                                placeholder="Paste exact question here..." 
+                                                className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Marks Weighting</label>
+                                            <input 
+                                                type="text" 
+                                                value={examMarks}
+                                                onChange={(e) => setExamMarks(e.target.value)}
+                                                placeholder="e.g. 5, 10, 15" 
+                                                className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Source Content (Paste Here)</label>
+                                <textarea 
+                                    value={rawContent}
+                                    onChange={(e) => setRawContent(e.target.value)}
+                                    placeholder="Paste text from a lecture, a book, or messy OCR/PDF scans..." 
+                                    rows={4}
+                                    className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium resize-none"
+                                />
+                            </div>
                         </div>
                     )}
 
